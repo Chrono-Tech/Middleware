@@ -1,14 +1,9 @@
-const Sequelize = require('sequelize');
+const mongoose = require('mongoose');
 
-module.exports = (sequelize) => {
-  return sequelize.define('block', {
-    id: {
-      type: Sequelize.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
-    block: {
-      type: Sequelize.INTEGER, unique: true
-    }
-  })
-};
+const Block = new mongoose.Schema({
+  block: {type: Number},
+  created: {type: Date, required: true, default: Date.now},
+
+});
+
+module.exports = mongoose.model('Block', Block);

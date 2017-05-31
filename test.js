@@ -1,7 +1,7 @@
 const ipfsAPI = require('ipfs-api'),
   config = require('./config.json'),
   Web3 = require('web3'),
-  Event_definition = require(`./truffle/build/contracts/${config.web3.contract.name}`),
+  Event_definition = require('./SmartContracts/build/contracts/Events.json'),
   web3 = new Web3(),
   contract = require("truffle-contract"),
   _ = require('lodash'),
@@ -37,7 +37,7 @@ Promise.all(
       event_instance.addAddress(items[0], {gas: 3000000});
 
       setTimeout(()=>{
-         event_instance.updateAddress(items[1], items[0], {gas: 3000000})
+         event_instance.updateAddress(items[0], items[0], {gas: 3000000})
       }, 2000);
 
 

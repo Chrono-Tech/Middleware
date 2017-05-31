@@ -1,17 +1,15 @@
 const schedule = require('node-schedule'),
-  models = require('../models'),
+  pinModel = require('../models/pinModel'),
   ipfsAPI = require('ipfs-api'),
   _ = require('lodash'),
-  config = require('../config.json');
+  config = require('../../../config.json');
 
-module.exports = (sequelize) => {
+module.exports = () => {
 
   const ipfs_stack = config.nodes.map(node => ipfsAPI(node));
-  const pinModel = models.pinModel(sequelize);
 
   schedule.scheduleJob(config.schedule.job, () => {
-    pinModel.findAll({
-      where: {
+    pinModel.find({
         $or: [
           {
             createdAt: {$lt: new Date(new Date() - config.schedule.check_time * 1000)}
@@ -20,8 +18,9 @@ module.exports = (sequelize) => {
             updatedAt: {$lt: new Date(new Date() - config.schedule.check_time * 1000)}
           }
         ]
-      }
-    }).then(records =>
+
+    })
+      .then(records =>
       Promise.all(
         _.chain(records)
           .filter(r => r.hash)
@@ -31,12 +30,12 @@ module.exports = (sequelize) => {
           .value()
       )
     )
-      .then(hashes =>
+      .then(hashes =>{
         pinModel.update(
-          {updatedAt: new Date()},
-          {where: {hash: {$in: _.map(hashes, hash => _.head(hash))}}}
+          {hash: {$in: _.map(hashes, hash => _.head(hash))}},
+          {$set: {updatedAt: new Date()}}
         )
-      )
+  })
       .catch(err => {
         console.log(err);
       })

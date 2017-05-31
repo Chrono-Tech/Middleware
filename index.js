@@ -1,75 +1,38 @@
-const contract = require('./contract'),
-  Sequelize = require('sequelize'),
-  sequelize = new Sequelize({dialect: 'sqlite', storage: 'database.sqlite'}),
-  models = require('./models'),
-  pinModel = models.pinModel(sequelize),
-  blockModel = models.blockModel(sequelize),
-  scheduleCtrl = require('./controllers').scheduleCtrl,
-  contractsCtrl = require('./controllers').contractsCtrl,
+const mongoose = require('mongoose'),
+  config = require('./config.json'),
+  blockModel = require('./models').blockModel,
+  contractsCtrl = require('./controllers').contractsCtrl(),
+  emitter = require('events'),
+  _ = require('lodash'),
+  plugins = require('./plugins'),
   Promise = require('bluebird');
 
+mongoose.connect(config.mongo.uri);
 
-return contractsCtrl(sequelize);
+Promise.all(
+  _.chain(contractsCtrl.contracts)
+    .map(c => c.deployed())
+    .union([blockModel.findOne().sort('-block')])
+    .value()
+).then(data => {
+  let block = _.chain(data).last().get('block', 0).add(0).value();
+  let contracts = _.initial(data);
+  let eventEmitter = new emitter();
 
-
-Promise.all([
-  blockModel.sync()
-    .then(() =>
-      blockModel.max('block')
-    ),
-  new contract().init(),
-  pinModel.sync()
-])
-  .spread((fromBlock, contact_instance) => {
-    console.log('from: ', fromBlock);
-    contact_instance.New({fromBlock: fromBlock || 0}).watch((err, result) => {
-
-      if (fromBlock >= result.blockNumber) {
+  contracts.forEach(c => {
+    let events = c.allEvents({fromBlock: block, toBlock: 'latest'});
+    events.watch((error, result) => {
+      if (!_.has(result, 'event') || !contractsCtrl.eventModels[result.event] || result.blockNumber <= block) {
         return;
       }
-
-      console.log('new block: ', result.blockNumber);
-      console.log('new address: ', result.args.addr);
-      console.log(result);
-
-      Promise.all([
-        pinModel.create({hash: result.args.addr}),
-        blockModel.create({block: result.blockNumber})
-      ])
-        .catch(err => {
-          console.log(err)
-        });
-
+      let new_event = new contractsCtrl.eventModels[result.event](result.args);
+      new_event.save();
+      let new_block = new blockModel({block: result.blockNumber});
+      new_block.save();
+      eventEmitter.emit(result.event, result.args);
     });
-
-    contact_instance.Update({fromBlock: fromBlock || 0}).watch((err, result) => {
-
-      if (fromBlock >= result.blockNumber) {
-        return;
-      }
-
-      console.log('block: ', result.blockNumber);
-      console.log('address: ', result.args.addr);
-      console.log(result);
-
-      Promise.all([
-        pinModel.update({hash: result.args.new_addr}, {
-          where: {
-            hash: result.args.old_addr
-          }
-        }),
-        blockModel.create({block: result.blockNumber})
-      ])
-        .catch(err => {
-          console.log(err)
-        });
-
-    });
-
   })
-  .catch(err => {
-    console.log(err);
-  });
 
-scheduleCtrl(sequelize);
+  plugins.ipfs(eventEmitter);
 
+});
