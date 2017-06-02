@@ -43,7 +43,6 @@ beforeAll(() => {
     userManager.deployed()
   ])
     .spread((EventsHistory, ChronoMintEmitter, ChronoBankPlatformEmitter, ChronoBankPlatform, ChronoMint, UserManager) => {
-
       return Promise.all([
         ChronoMint,
         ChronoBankPlatform,
@@ -54,6 +53,7 @@ beforeAll(() => {
         EventsHistory.addEmitter(ChronoMintEmitter.contract.hashUpdate.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
         EventsHistory.addEmitter(ChronoMintEmitter.contract.cbeUpdate.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
         EventsHistory.addEmitter(ChronoMintEmitter.contract.cbeUpdate.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
+        EventsHistory.addEmitter(ChronoMintEmitter.contract.updLOCValue.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
         EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitTransfer.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
         EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitIssue.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
         EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitRevoke.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
@@ -93,14 +93,22 @@ test('add new loc', () => {
       .value()
   )
     .then((data) => {
-      factory.hash = {new: data[0].toJSON().multihash};
+      factory.Loc = {
+        name: helpers.bytes32(helpers.generateRandomString()),
+        website: helpers.bytes32("www.ru"),
+        issueLimit: 1000000,
+        hash: helpers.bytes32fromBase58(data[0].toJSON().multihash),
+        expDate: Math.round(+new Date() / 1000),
+        currency: helpers.bytes32('LHT')
+
+      };
       return contracts.mint.addLOC(
-        helpers.bytes32(helpers.generateRandomString()),
-        helpers.bytes32("www.ru"),
-        1000000,
-        helpers.bytes32fromBase58(factory.hash.new),
-        Math.round(+new Date() / 1000),
-        helpers.bytes32('LHT')
+        factory.Loc.name,
+        factory.Loc.website,
+        factory.Loc.issueLimit,
+        factory.Loc.hash,
+        factory.Loc.expDate,
+        factory.Loc.currency
       )
     })
     .then(result => {
@@ -110,16 +118,14 @@ test('add new loc', () => {
     })
 });
 
-test('fetch changes for loc', () =>
+test('fetch changes for loc via getLoc', () =>
   new Promise(res => {
     emitters.mint.allEvents({fromBlock: 0}).watch((err, result) => {
       if (result && result.event === 'NewLOC') {
         expect(result.args.locName).toBeDefined();
         contracts.mint.getLOCByName(result.args.locName)
           .then(data => {
-            if (helpers.bytes32toBase58(data[4]) === factory.hash.new) {
-              factory.hash.new_raw = data[4];
-              factory.newLoc = {name: result.args.locName};
+            if (data[4] === factory.Loc.hash) {
               res();
             }
           })
@@ -134,12 +140,72 @@ test('validate hash on mongo', () =>
       mongoose.model('NewLOC', new mongoose.Schema({
           locName: {type: mongoose.Schema.Types.Mixed}
         }
-      )).findOne({locName: factory.newLoc.name})
+      )).findOne({locName: factory.Loc.name})
     )
     .then(result => {
       expect(result).toBeDefined();
       expect(result.locName).toBeDefined();
       return Promise.resolve();
     })
+);
+
+test('update loc', () => {
+
+  const obj = {
+    Data: new Buffer(helpers.generateRandomString()),
+    Links: []
+  };
+  const ipfs_stack = config.nodes.map(node => ipfsAPI(node));
+
+  Promise.all(
+    _.chain(ipfs_stack)
+      .map(ipfs =>
+        ipfs.object.put(obj)
+      )
+      .value()
+  )
+    .then((data) => {
+      factory.Loc.hash = helpers.bytes32fromBase58(data[0].toJSON().multihash);
+      return contracts.mint.setLOC(
+        factory.Loc.name,
+        factory.Loc.name,
+        factory.Loc.website,
+        factory.Loc.issueLimit,
+        factory.Loc.hash,
+        factory.Loc.expDate
+      )
+    })
+    .then(result => {
+      expect(result).toBeDefined();
+      expect(result.tx).toBeDefined();
+      return Promise.resolve();
+    })
+});
+
+test('fetch changes for loc via getLoc', () =>
+  new Promise(res => {
+    emitters.mint.allEvents({fromBlock: 0}).watch((err, result) => {
+      if (result && result.event === 'UpdLOCValue') {
+        expect(result.args.locName).toBeDefined();
+        contracts.mint.getLOCByName(result.args.locName)
+          .then(data => {
+            console.log(data);
+            if (data[4] === factory.Loc.hash) {
+              res();
+            }
+          })
+      }
+    });
+  })
+);
+
+test('fetch changes for loc via HashUpdate event', () =>
+  new Promise(res => {
+    emitters.mint.allEvents({fromBlock: 0}).watch((err, result) => {
+      if (result && result.event === 'HashUpdate' && result.args.newHash === factory.Loc.hash) {
+        res();
+      }
+    });
+  })
 );
 
