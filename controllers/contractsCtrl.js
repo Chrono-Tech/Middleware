@@ -18,23 +18,29 @@ module.exports = () => {
 
   web3.setProvider(provider);
 
-  let chronoBankPlatform = contract(contracts.ChronoBankPlatform);
+  let ChronoBankPlatform = contract(contracts.ChronoBankPlatform);
   let ChronoBankPlatformEmitter = contract(contracts.ChronoBankPlatformEmitter);
-  let chronoMintEmitter = contract(contracts.ChronoMintEmitter);
+  let ChronoMintEmitter = contract(contracts.ChronoMintEmitter);
   let EventsHistory = contract(contracts.EventsHistory);
-  let chronoMint = contract(contracts.ChronoMint);
-  let userManager = contract(contracts.UserManager);
+  let ChronoMint = contract(contracts.ChronoMint);
+  let UserManager = contract(contracts.UserManager);
 
-  [chronoBankPlatform, ChronoBankPlatformEmitter, chronoMintEmitter, EventsHistory, chronoMint, userManager]
+  [ChronoBankPlatform, ChronoBankPlatformEmitter, ChronoMintEmitter, EventsHistory, ChronoMint, UserManager]
     .forEach(c => {
       c.defaults({from: web3.eth.coinbase, gas: 3000000});
       c.setProvider(provider);
     });
 
-  let eventModels = _.chain(ChronoBankPlatformEmitter)
-    .get('abi')
-    .filter({type: 'event'})
+  let eventModels = _.chain([ChronoBankPlatformEmitter, ChronoMintEmitter])
+    .map(emitter =>
+      _.chain(emitter).get('abi')
+        .filter({type: 'event'})
+        .value()
+    )
+    .flatten()
+    .uniqBy('name')
     .transform((result, ev) => {
+      console.log(ev);
       result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
         _.chain(ev.inputs).transform((result, obj) => {
           result[obj.name] = {type: mongoose.Schema.Types.Mixed}
@@ -47,23 +53,38 @@ module.exports = () => {
 
   let initEmitter = Promise.all([
     EventsHistory.deployed(),
-    chronoMintEmitter.deployed(),
-    chronoBankPlatform.deployed(),
-    chronoMint.deployed(),
-    userManager.deployed()
+    ChronoMintEmitter.deployed(),
+    ChronoBankPlatform.deployed(),
+    ChronoMint.deployed(),
+    UserManager.deployed()
   ])
-    .spread((EventsHistory, chronoMintEmitter, chronoBankPlatform, chronoMint, userManager) =>
+    .spread((eventsHistory, chronoMintEmitter, chronoBankPlatform, chronoMint, userManager) =>
       Promise.all([
-        chronoBankPlatform.setupEventsHistory(EventsHistory.address, {gas: 3000000}),
-        chronoMint.setupEventsHistory(EventsHistory.address, {gas: 3000000}),
-        userManager.setupEventsHistory(EventsHistory.address, {gas: 3000000}),
-        ChronoBankPlatformEmitter.at(EventsHistory.address)
+        chronoBankPlatform.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
+        chronoMint.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
+        userManager.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
+        ChronoBankPlatformEmitter.at(eventsHistory.address),
+        ChronoMintEmitter.at(eventsHistory.address)
       ])
-    ).then(data => _.last(data));
+    ).then(data => {
+      return {
+        mint: data[data.length - 1],
+        platform: data[data.length - 2]
+      }
+    });
+
+  let initContracts = Promise.all([
+    ChronoBankPlatform.deployed(),
+    ChronoMint.deployed()
+  ])
+    .spread((platform, mint) =>
+      Promise.resolve({platform, mint})
+    );
 
   return {
     eventModels: eventModels,
-    initEmitter: initEmitter
+    initEmitter: initEmitter,
+    contracts: initContracts
   }
 
 };

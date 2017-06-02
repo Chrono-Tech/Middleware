@@ -69,14 +69,14 @@ Promise.all([
     let chronoBankPlatformEmitter_instance_events = chronoBankPlatformEmitter_instance.allEvents({fromBlock: 0});
     chronoBankPlatformEmitter_instance_events.watch((err, result) => {
       if (result && result.event)
-        console.log(result.event)
+        console.log('chronoplatform:', result.event)
     });
 
     let chronoMintEmitter_instance = _.last(data);
     let chronoMintEmitter_instance_events = chronoMintEmitter_instance.allEvents({fromBlock: 0});
     chronoMintEmitter_instance_events.watch((err, result) => {
       if (result && result.event)
-        console.log(result.event)
+        console.log('chronomint:', result.event)
     });
 
     let ChronoMint_instance = _.head(data);
@@ -87,5 +87,6 @@ Promise.all([
       helpers.bytes32fromBase58("QmTeW79w7QQ6Npa3b1d5tANreCDxF2iDaAPsDvW6KtLmfB"),
       Math.round(+new Date()/1000),
       helpers.bytes32('LHT'));
+
 
   });

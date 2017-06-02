@@ -11,26 +11,32 @@ mongoose.connect(config.mongo.uri);
 
 Promise.all([
   contractsCtrl.initEmitter,
+  contractsCtrl.contracts,
   blockModel.findOne().sort('-block')
-]).spread((instance, block) => {
+]).spread((components, contracts, block) => {
 
   block = _.chain(block).get('block', 0).add(0).value();
   let eventEmitter = new emitter();
 
-  let events = instance.allEvents({fromBlock: block, toBlock: 'latest'});
+  _.chain(components).values()
+    .forEach(instance => {
 
-  events.watch((error, result) => {
-    console.log(result);
-    if (!_.has(result, 'event') || !contractsCtrl.eventModels[result.event] || result.blockNumber <= block) {
-      return;
-    }
-    let new_event = new contractsCtrl.eventModels[result.event](result.args);
-    new_event.save();
-    let new_block = new blockModel({block: result.blockNumber});
-    new_block.save();
-    eventEmitter.emit(result.event, result.args);
-  });
+      let events = instance.allEvents({fromBlock: block, toBlock: 'latest'});
 
-  plugins.ipfs(eventEmitter);
+      events.watch((error, result) => {
+        if (!_.has(result, 'event') || !contractsCtrl.eventModels[result.event] || result.blockNumber <= block) {
+          return;
+        }
+        let new_event = new contractsCtrl.eventModels[result.event](result.args);
+        new_event.save();
+        let new_block = new blockModel({block: result.blockNumber});
+        new_block.save();
+        eventEmitter.emit(result.event, result.args);
+      });
+
+    })
+    .value();
+
+  plugins.ipfs(eventEmitter, contracts);
 
 });
