@@ -85,7 +85,7 @@ test('add new loc', () => {
   };
   const ipfs_stack = config.nodes.map(node => ipfsAPI(node));
 
-  Promise.all(
+  return Promise.all(
     _.chain(ipfs_stack)
       .map(ipfs =>
         ipfs.object.put(obj)

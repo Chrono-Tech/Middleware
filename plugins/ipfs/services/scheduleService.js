@@ -28,24 +28,25 @@ module.exports = () => {
             .map(r =>
               Promise.all(
                 ipfs_stack.map(ipfs =>
-                  //ipfs.pin.add(r.hash)
-                  Promise.resolve(ipfs.pin.add(r.hash))
-                    .timeout(1000)
-                    .catch(err=>{})
+                  Promise.delay(1000)
+                    .then(() => ipfs.pin.add(r.hash))
+                    .timeout(30000)
+                    .catch(err => {
+                      log.error(err);
+                    })
                 )
               )
             )
             .value()
         )
       )
-      .then(hashes => {
-        console.log(hashes);
+      .then(hashes =>
         pinModel.update(
-          {hash: {$in: _.flattenDeep(hashes)}},
-          {$set: {updated: new Date()}},
+          {hash: {$in: _.chain(hashes).flattenDeep().uniq().value()}},
+          {$currentDate: {updated: true}},
           {multi: true}
         )
-      })
+      )
       .catch(err => {
         log.error(err);
       })

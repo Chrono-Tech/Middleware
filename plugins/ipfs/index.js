@@ -24,7 +24,7 @@ module.exports = (events, contracts) => {
   events.on('HashUpdate', args => {
     pinModel.update(
       {hash: args.oldHash},
-      {updated: new Date(), hash: args.newHash}
+      {updated: Date.now(), hash: args.newHash}
     )
   });
 

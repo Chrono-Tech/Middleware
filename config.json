@@ -1,13 +1,14 @@
 {
   "nodes":[
-    {"host": "localhost", "port": "32771", "protocol": "http"}
+    {"host": "localhost", "port": "32771", "protocol": "http"},
+    {"host": "ipfs.infura.io", "port": "5001", "protocol": "https"}
   ],
   "web3": {
     "url" : "http://localhost:8547"
   },
   "schedule": {
     "job": "30 * * * * *",
-    "check_time": 0
+    "check_time": 86400
   },
   "mongo": {
     "uri": "mongodb://localhost:32772/data"
