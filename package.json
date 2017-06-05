@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bunyan": "^1.8.10",
     "ipfs-api": "^14.0.2",
     "lodash": "^4.17.4",
     "mongoose": "^4.10.4",

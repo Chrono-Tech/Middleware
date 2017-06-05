@@ -12,6 +12,13 @@ const _ = require('lodash'),
     filter: /(.+)\.json$/,
   });
 
+/**
+ * @module contracts Controller
+ * @description initialize all events for smartContracts,
+ * and prepare collections in mongo for them
+ * @returns {{eventModels, initEmitter, contracts: (Function|*)}}
+ */
+
 module.exports = () => {
 
   const provider = new Web3.providers.HttpProvider(config.web3.url);
@@ -40,7 +47,6 @@ module.exports = () => {
     .flatten()
     .uniqBy('name')
     .transform((result, ev) => {
-      console.log(ev);
       result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
         _.chain(ev.inputs).transform((result, obj) => {
           result[obj.name] = {type: mongoose.Schema.Types.Mixed}

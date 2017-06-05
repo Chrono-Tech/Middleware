@@ -2,7 +2,16 @@ const schedule = require('node-schedule'),
   pinModel = require('../models/pinModel'),
   ipfsAPI = require('ipfs-api'),
   _ = require('lodash'),
-  config = require('../../../config.json');
+  bunyan = require('bunyan'),
+  config = require('../../../config.json'),
+  Promise = require('bluebird'),
+  log = bunyan.createLogger({name: "plugins.ipfs.scheduleService"});
+
+/**
+ * @module scheduleService
+ * @description ping ipfs by specified time in config
+ * @see {@link ../../../config.json}
+ */
 
 module.exports = () => {
 
@@ -10,34 +19,35 @@ module.exports = () => {
 
   schedule.scheduleJob(config.schedule.job, () => {
     pinModel.find({
-        $or: [
-          {
-            createdAt: {$lt: new Date(new Date() - config.schedule.check_time * 1000)}
-          },
-          {
-            updatedAt: {$lt: new Date(new Date() - config.schedule.check_time * 1000)}
-          }
-        ]
-
+      updated: {$lt: new Date(new Date() - config.schedule.check_time * 1000)}
     })
       .then(records =>
-      Promise.all(
-        _.chain(records)
-          .filter(r => r.hash)
-          .map(r =>
-            Promise.all(ipfs_stack.map(ipfs => ipfs.pin.add(r.hash)))
-          )
-          .value()
-      )
-    )
-      .then(hashes =>{
-        pinModel.update(
-          {hash: {$in: _.map(hashes, hash => _.head(hash))}},
-          {$set: {updatedAt: new Date()}}
+        Promise.all(
+          _.chain(records)
+            .filter(r => r.hash)
+            .map(r =>
+              Promise.all(
+                ipfs_stack.map(ipfs =>
+                  //ipfs.pin.add(r.hash)
+                  Promise.resolve(ipfs.pin.add(r.hash))
+                    .timeout(1000)
+                    .catch(err=>{})
+                )
+              )
+            )
+            .value()
         )
-  })
+      )
+      .then(hashes => {
+        console.log(hashes);
+        pinModel.update(
+          {hash: {$in: _.flattenDeep(hashes)}},
+          {$set: {updated: new Date()}},
+          {multi: true}
+        )
+      })
       .catch(err => {
-        console.log(err);
+        log.error(err);
       })
 
   })

@@ -6,7 +6,7 @@
     "url" : "http://localhost:8547"
   },
   "schedule": {
-    "job": "5 * * * * *",
+    "job": "30 * * * * *",
     "check_time": 0
   },
   "mongo": {

@@ -134,7 +134,7 @@ test('fetch changes for loc via getLoc', () =>
   })
 );
 
-test('validate hash on mongo', () =>
+test('validate hash in mongo', () =>
   Promise.delay(2000)
     .then(() =>
       mongoose.model('NewLOC', new mongoose.Schema({
@@ -165,6 +165,7 @@ test('update loc', () => {
       .value()
   )
     .then((data) => {
+      factory.Loc.old_hash = factory.Loc.hash;
       factory.Loc.hash = helpers.bytes32fromBase58(data[0].toJSON().multihash);
       return contracts.mint.setLOC(
         factory.Loc.name,
@@ -189,7 +190,6 @@ test('fetch changes for loc via getLoc', () =>
         expect(result.args.locName).toBeDefined();
         contracts.mint.getLOCByName(result.args.locName)
           .then(data => {
-            console.log(data);
             if (data[4] === factory.Loc.hash) {
               res();
             }
@@ -207,5 +207,20 @@ test('fetch changes for loc via HashUpdate event', () =>
       }
     });
   })
+);
+
+test('validate new hash in mongo', () =>
+  Promise.delay(2000)
+    .then(() =>
+      mongoose.model('hashupdates', new mongoose.Schema({
+          oldHash: {type: mongoose.Schema.Types.Mixed},
+          newHash: {type: mongoose.Schema.Types.Mixed}
+        }
+      )).findOne({oldHash: factory.Loc.old_hash, newHash: factory.Loc.hash})
+    )
+    .then(result => {
+      expect(result).toBeDefined();
+      return Promise.resolve();
+    })
 );
 

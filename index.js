@@ -7,6 +7,13 @@ const mongoose = require('mongoose'),
   plugins = require('./plugins'),
   Promise = require('bluebird');
 
+/**
+ * @module entry point
+ * @description registers all smartContract's events,
+ * listen for changes, and notify plugins.
+ */
+
+
 mongoose.connect(config.mongo.uri);
 
 Promise.all([
@@ -18,9 +25,9 @@ Promise.all([
   block = _.chain(block).get('block', 0).add(0).value();
   let eventEmitter = new emitter();
 
+  /** initialize eventEmitter and watcher for eth contracts **/
   _.chain(components).values()
     .forEach(instance => {
-
       let events = instance.allEvents({fromBlock: block, toBlock: 'latest'});
 
       events.watch((error, result) => {
@@ -37,6 +44,9 @@ Promise.all([
     })
     .value();
 
-  plugins.ipfs(eventEmitter, contracts);
+  /** register all plugins **/
+  _.chain(plugins).values()
+    .forEach(plugin=> plugin(eventEmitter, contracts))
+    .value()
 
 });
