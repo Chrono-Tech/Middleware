@@ -7,6 +7,7 @@
     "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
     "test": "node ./node_modules/jest/bin/jest.js",
     "prepare_linux": "sh prepare_env_linux.sh",
+    "prepare_linux_install": "sh prepare_env_linux.sh --install",
     "prepare_win": "prepare_env_win.bat"
   },
   "author": "",
