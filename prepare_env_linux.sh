@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#rm -rf SmartContracts
-#git clone -b develop https://github.com/ChronoBank/SmartContracts.git
+rm -rf SmartContracts
+git clone -b develop https://github.com/ChronoBank/SmartContracts.git
 (cd SmartContracts && npm install && cp ../truffle-config.js truffle.js)
 
 for i in "$@"
