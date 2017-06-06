@@ -8,7 +8,7 @@
   },
   "schedule": {
     "job": "30 * * * * *",
-    "check_time": 86400
+    "check_time": 0
   },
   "mongo": {
     "uri": "mongodb://localhost:32772/data"

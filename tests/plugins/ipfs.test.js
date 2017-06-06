@@ -5,13 +5,23 @@ const config = require('../../config.json'),
   pinModel = require('../../plugins/ipfs/models/pinModel'),
   mongoose = require('mongoose'),
   helpers = require('../helpers'),
+  parser = require('cron-parser'),
+  moment = require('moment'),
   factory = {};
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000 * 50; // 10 second timeout
+/** calculate delay between cron job + check time in ipfs daemon and current time,
+ * so we could know, when daemon will be triggered next time
+ */
+const default_delay = moment(
+    new Date(parser.parseExpression(config.schedule.job).next().toString())
+  ).add(config.schedule.check_time + 120, 'seconds').diff(new Date());
+
+jasmine.DEFAULT_TIMEOUT_INTERVAL = default_delay * 2;
 
 beforeAll(() => {
   return mongoose.connect(config.mongo.uri);
 });
+
 
 afterAll(() =>
   pinModel.remove({
@@ -21,6 +31,7 @@ afterAll(() =>
       mongoose.disconnect()
     )
 );
+
 
 test('add 100 new records to ipfs', () => {
 
@@ -83,7 +94,7 @@ test('validate hashes in mongo', () =>
 
 test('validate ping result of daemon', () =>
 
-  Promise.delay(60000)
+  Promise.delay(default_delay)
     .then(() =>
       pinModel.find({
         hash: {$in: factory.hashes}
