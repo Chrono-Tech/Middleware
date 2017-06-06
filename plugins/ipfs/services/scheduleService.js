@@ -5,7 +5,7 @@ const schedule = require('node-schedule'),
   bunyan = require('bunyan'),
   config = require('../../../config.json'),
   Promise = require('bluebird'),
-  log = bunyan.createLogger({name: "plugins.ipfs.scheduleService"});
+  log = bunyan.createLogger({name: 'plugins.ipfs.scheduleService'});
 
 /**
  * @module scheduleService
@@ -49,8 +49,8 @@ module.exports = () => {
       )
       .catch(err => {
         log.error(err);
-      })
+      });
 
-  })
+  });
 
 };

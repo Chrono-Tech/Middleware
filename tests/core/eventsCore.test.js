@@ -143,6 +143,8 @@ test('validate hash in mongo', () =>
       )).findOne({locName: factory.Loc.name})
     )
     .then(result => {
+      console.log(result);
+      console.log(factory.Loc)
       expect(result).toBeDefined();
       expect(result.locName).toBeDefined();
       return Promise.resolve();

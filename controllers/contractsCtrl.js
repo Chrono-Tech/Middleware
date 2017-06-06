@@ -4,7 +4,7 @@ const _ = require('lodash'),
   config = require('../config.json'),
   require_all = require('require-all'),
   path = require('path'),
-  contract = require("truffle-contract"),
+  contract = require('truffle-contract'),
   mongoose = require('mongoose'),
   Promise = require('bluebird'),
   contracts = require_all({
@@ -49,7 +49,7 @@ module.exports = () => {
     .transform((result, ev) => {
       result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
         _.chain(ev.inputs).transform((result, obj) => {
-          result[obj.name] = {type: mongoose.Schema.Types.Mixed}
+          result[obj.name] = {type: mongoose.Schema.Types.Mixed};
         }, {}).merge({
           created: {type: Date, required: true, default: Date.now}
         }).value()
@@ -76,7 +76,7 @@ module.exports = () => {
       return {
         mint: data[data.length - 1],
         platform: data[data.length - 2]
-      }
+      };
     });
 
   let initContracts = Promise.all([
@@ -91,6 +91,6 @@ module.exports = () => {
     eventModels: eventModels,
     initEmitter: initEmitter,
     contracts: initContracts
-  }
+  };
 
 };

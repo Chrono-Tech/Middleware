@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
+    "test": "node ./node_modules/jest/bin/jest.js",
+    "prepare_linux": "sh prepare_env_linux.sh",
+    "prepare_win": "prepare_env_win.bat"
   },
   "author": "",
   "license": "ISC",
@@ -20,6 +23,11 @@
   },
   "devDependencies": {
     "cron-parser": "^2.4.0",
-    "jest": "^20.0.4"
+    "eslint": "^3.19.0",
+    "jest": "^20.0.4",
+    "moment": "^2.18.1"
+  },
+  "jest": {
+    "rootDir": "tests"
   }
 }

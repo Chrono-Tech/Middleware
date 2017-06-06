@@ -18,14 +18,14 @@ module.exports = (events, contracts) => {
       .then(data => {
         let pin = new pinModel({hash: bytes32toBase58(data[4])});
         pin.save();
-      })
+      });
   });
 
   events.on('HashUpdate', args => {
     pinModel.update(
       {hash: args.oldHash},
       {updated: Date.now(), hash: args.newHash}
-    )
+    );
   });
 
   scheduleService();
