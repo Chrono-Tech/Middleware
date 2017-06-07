@@ -1,8 +1,14 @@
 #!/bin/bash
 
 rm -rf SmartContracts
+
+echo downloading repo...
+
 git clone -b develop https://github.com/ChronoBank/SmartContracts.git
-(cd SmartContracts && npm install && cp ../truffle-config.js truffle.js)
+
+echo installing...
+
+(cd SmartContracts && npm install --only=production && cp ../truffle-config.js truffle.js)
 
 for i in "$@"
 do
@@ -17,9 +23,9 @@ esac
 done
 
 if [[ -n "$INSTALL" ]]; then
-    echo "RUN DEPLOYMENT TASK OF SMART CONTRACTS..."
+    echo "running deployment task of smart contracts..."
     (cd SmartContracts && node ./node_modules/truffle/cli migrate && node ./node_modules/truffle/cli exec setup/*)
 else
-    echo "COMPILE SMART CONTRACTS"
+    echo "compiling smart contracts"
     (cd SmartContracts && node ./node_modules/truffle/cli compile)
 fi
