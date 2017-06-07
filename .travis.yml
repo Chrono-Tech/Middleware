@@ -10,15 +10,13 @@ services: mongodb
 
 install:
   - npm install
-  - export PATH=$PATH:$(pwd)/node_modules/.bin
-  - export NODE_ENV=''
   - npm run prepare_linux_install
 
 
 script:
   - npm run testrpc > /dev/null &
-  - node . > /dev/null &
-  - npm test -- --coverage
+  - sleep 5 && node . > /dev/null &
+  - sleep 20 && npm test -- --coverage
 
 notifications:
   email: false
