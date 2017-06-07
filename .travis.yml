@@ -16,7 +16,7 @@ install:
 
 
 script:
-  - testrpc > /dev/null &
+  - nohup npm run testrpc &
   - nohup node . &
   - npm test -- --coverage
 
