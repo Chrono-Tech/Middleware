@@ -16,12 +16,9 @@ install:
 
 
 script:
-  - nohup npm run testrpc &
-  - nohup node . &
+  - npm run testrpc > /dev/null &
+  - node . > /dev/null &
   - npm test -- --coverage
-
-after_script:
-  - cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
 
 notifications:
   email: false
