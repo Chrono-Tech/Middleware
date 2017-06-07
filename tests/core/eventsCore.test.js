@@ -77,6 +77,10 @@ beforeAll(() => {
     })
 });
 
+afterAll(() =>
+  mongoose.disconnect()
+);
+
 test('add new loc', () => {
 
   const obj = {

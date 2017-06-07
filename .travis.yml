@@ -11,11 +11,16 @@ services: mongodb
 install:
   - npm install
 
+before_script:
+    - npm run testrpc > /dev/null &
+    - sleep 5 && npm run prepare_linux_install
+    - sleep 5 && node . > /dev/null &
 script:
-  - npm run testrpc > /dev/null &
-  - sleep 5 && npm run prepare_linux_install
-  - sleep 5 && node . > /dev/null &
   - sleep 20 && npm test -- --coverage
+
+after_script:
+  - cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
+
 
 notifications:
   email: false
