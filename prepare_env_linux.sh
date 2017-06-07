@@ -5,7 +5,7 @@ rm -rf SmartContracts
 echo downloading repo...
 
 git clone -b develop https://github.com/Mikefluff/SmartContracts.git
-(cd SmartContracts  && git checkout ff14a54921)
+(cd SmartContracts  && git checkout b64a0bd930c094fdf374522839828c0b2bc2730b)
 
 echo installing...
 
