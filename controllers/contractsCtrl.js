@@ -1,96 +1,48 @@
-const _ = require('lodash'),
-  Web3 = require('web3'),
-  web3 = new Web3(),
-  config = require('../config.json'),
-  require_all = require('require-all'),
-  path = require('path'),
+const Web3 = require('web3'),
   contract = require('truffle-contract'),
-  mongoose = require('mongoose'),
-  Promise = require('bluebird'),
-  contracts = require_all({
-    dirname: path.join(__dirname, '..', 'SmartContracts', 'build', 'contracts'),
-    filter: /(.+)\.json$/,
-  });
+  path = require('path'),
+  require_all = require('require-all'),
+  _ = require('lodash'),
+  bunyan = require('bunyan'),
+  log = bunyan.createLogger({name: 'controllers.contractsCtrl'}),
+  Promise = require('bluebird');
 
 /**
  * @module contracts Controller
- * @description initialize all events for smartContracts,
- * and prepare collections in mongo for them
- * @returns {{eventModels, initEmitter, contracts: (Function|*)}}
+ * @description initialize all contracts and web3
+ * @param provider_config - single network from truffle-config.js
+ * @returns {Promise|Promise.<{instances, contracts, web3}>}
  */
 
-module.exports = () => {
+module.exports = (provider_config) => {
 
-  const provider = new Web3.providers.HttpProvider(config.web3.url);
+  const instances = {},
+    provider = new Web3.providers.HttpProvider(`http://${provider_config.host}:${provider_config.port}`),
+    web3 = new Web3(),
+    contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
+      dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
+      filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
+      resolve: Contract => {
+        let c = contract(Contract);
+        c.defaults({gas: 3000000});
+        c.setProvider(provider);
+        return c;
+      }
+    });
 
   web3.setProvider(provider);
 
-  let ChronoBankPlatform = contract(contracts.ChronoBankPlatform);
-  let ChronoBankPlatformEmitter = contract(contracts.ChronoBankPlatformEmitter);
-  let ChronoMintEmitter = contract(contracts.ChronoMintEmitter);
-  let EventsHistory = contract(contracts.EventsHistory);
-  let ChronoMint = contract(contracts.ChronoMint);
-  let UserManager = contract(contracts.UserManager);
-
-  [ChronoBankPlatform, ChronoBankPlatformEmitter, ChronoMintEmitter, EventsHistory, ChronoMint, UserManager]
-    .forEach(c => {
-      c.defaults({from: web3.eth.coinbase, gas: 3000000});
-      c.setProvider(provider);
-    });
-
-  let eventModels = _.chain([ChronoBankPlatformEmitter, ChronoMintEmitter])
-    .map(emitter =>
-      _.chain(emitter).get('abi')
-        .filter({type: 'event'})
-        .value()
+  //get instances and build object {contract_name: instance}
+  return Promise.all(
+    _.map(contracts, c =>
+      c.deployed()
+        .then(instance => {
+          return _.set(instances, c.toJSON().contract_name, instance);
+        }).catch(() => {})
     )
-    .flatten()
-    .uniqBy('name')
-    .transform((result, ev) => {
-      result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
-        _.chain(ev.inputs).transform((result, obj) => {
-          result[obj.name] = {type: mongoose.Schema.Types.Mixed};
-        }, {}).merge({
-          created: {type: Date, required: true, default: Date.now}
-        }).value()
-      ));
-    }, {})
-    .value();
-
-  let initEmitter = Promise.all([
-    EventsHistory.deployed(),
-    ChronoMintEmitter.deployed(),
-    ChronoBankPlatform.deployed(),
-    ChronoMint.deployed(),
-    UserManager.deployed()
-  ])
-    .spread((eventsHistory, chronoMintEmitter, chronoBankPlatform, chronoMint, userManager) =>
-      Promise.all([
-        chronoBankPlatform.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
-        chronoMint.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
-        userManager.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
-        ChronoBankPlatformEmitter.at(eventsHistory.address),
-        ChronoMintEmitter.at(eventsHistory.address)
-      ])
-    ).then(data => {
-      return {
-        mint: data[data.length - 1],
-        platform: data[data.length - 2]
-      };
-    });
-
-  let initContracts = Promise.all([
-    ChronoBankPlatform.deployed(),
-    ChronoMint.deployed()
-  ])
-    .spread((platform, mint) =>
-      Promise.resolve({platform, mint})
-    );
-
-  return {
-    eventModels: eventModels,
-    initEmitter: initEmitter,
-    contracts: initContracts
-  };
-
+  )
+    .then(() =>
+      Promise.resolve({instances, contracts, web3})
+    )
+    .catch(err => log.error(err));
 };
