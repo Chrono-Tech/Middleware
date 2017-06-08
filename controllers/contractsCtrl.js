@@ -49,7 +49,8 @@ module.exports = () => {
     .transform((result, ev) => {
       result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
         _.chain(ev.inputs).transform((result, obj) => {
-          result[obj.name] = {type: mongoose.Schema.Types.Mixed};
+          result[obj.name] = {type: new RegExp(/uint/).test(obj.type) ?
+            Number : mongoose.Schema.Types.Mixed};
         }, {}).merge({
           created: {type: Date, required: true, default: Date.now}
         }).value()

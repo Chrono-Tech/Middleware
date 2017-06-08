@@ -46,7 +46,7 @@ Promise.all([
 
   /** register all plugins **/
   _.chain(plugins).values()
-    .forEach(plugin=> plugin(eventEmitter, contracts))
+    .forEach(plugin=> plugin(eventEmitter, contracts, contractsCtrl.eventModels))
     .value();
 
 });
