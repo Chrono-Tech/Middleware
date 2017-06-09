@@ -4,13 +4,14 @@ const Web3 = require('web3'),
   config = require('../../config.json'),
   provider = new Web3.providers.HttpProvider(config.web3.url),
   path = require('path'),
+  _ = require('lodash'),
   Promise = require('bluebird');
 
 web3.setProvider(provider);
 
 const contracts = require('require-all')({
   dirname: path.join(__dirname, '../../SmartContracts/build/contracts'),
-  filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter)).)*)\.json$/,
+  filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
   resolve: Contract => {
     let c = contract(Contract);
     c.defaults({from: web3.eth.coinbase, gas: 3000000});
@@ -26,20 +27,7 @@ const LHT_SYMBOL = 'LHT';
 const LHT_NAME = 'Labour-hour Token';
 
 const fakeArgs = [0, 0, 0, 0, 0, 0, 0, 0];
-
-const contractTypes = {
-  LOCManager: 0, // LOCManager
-  PendingManager: 1, // PendingManager
-  UserManager: 2, // UserManager
-  ERC20Manager: 3, // ERC20Manager
-  ExchangeManager: 4, // ExchangeManager
-  TrackersManager: 5, // TrackersManager
-  Voting: 6, // Voting
-  Rewards: 7, // Rewards
-  AssetsManager: 8, // AssetsManager
-  TimeHolder: 9 //TimeHolder
-};
-
+/*
 let storage;
 let assetsManager;
 let chronoBankPlatform;
@@ -58,10 +46,10 @@ let chronoBankAssetProxy;
 let chronoBankAssetWithFee;
 let chronoBankAssetWithFeeProxy;
 let vote;
-let multiEventsHistory;
+let multiEventsHistory;*/
 
 let accounts;
-
+let instances = {};
 
 let setup = function(callback) {
 
@@ -74,9 +62,18 @@ let setup = function(callback) {
     .then(r => {
       accounts = r;
       console.log('--done');
-    }).then(() => {
-      console.log('deploy contracts');
-      return Promise.all([
+    }).then(() =>
+    Promise.all(
+      _.map(contracts, c=>
+      c.deployed()
+        .then(instance=>{
+          return _.set(instances, c.toJSON().contract_name, instance)
+        }).catch(err=>{})
+      )
+    ).then(()=>{
+    console.log(Object.keys(instances))
+    })
+/*      Promise.all([
         contracts.Storage.deployed(),
         contracts.UserManager.deployed(),
         contracts.ContractsManager.deployed(),
@@ -96,94 +93,49 @@ let setup = function(callback) {
         contracts.ChronoBankPlatformEmitter.deployed(),
         contracts.EventsHistory.deployed(),
         contracts.MultiEventsHistory.deployed()
-      ]);
-    }).then((instances) => {
-    [
-        storage,
-        userManager,
-        contractsManager,
-        shareable,
-        chronoMint,
-        chronoBankPlatform,
-        chronoBankAsset,
-        chronoBankAssetWithFee,
-        chronoBankAssetProxy,
-        chronoBankAssetWithFeeProxy,
-        assetsManager,
-        erc20Manager,
-        exchangeManager,
-        rewards,
-        vote,
-        timeHolder,
-        chronoBankPlatformEmitter,
-        eventsHistory,
-        multiEventsHistory
-      ] = instances;
-
-    }).then(() => {
-      module.exports.storage = storage;
-      module.exports.accounts = accounts;
-      module.exports.assetsManager = assetsManager;
-      module.exports.chronoBankPlatform = chronoBankPlatform;
-      module.exports.chronoMint = chronoMint;
-      module.exports.contractsManager = contractsManager;
-      module.exports.timeHolder = timeHolder;
-      module.exports.shareable = shareable;
-      module.exports.eventsHistory = eventsHistory;
-      module.exports.erc20Manager = erc20Manager;
-      module.exports.chronoBankPlatformEmitter = chronoBankPlatformEmitter;
-      module.exports.rewards = rewards;
-      module.exports.userManager = userManager;
-      module.exports.exchangeManager = exchangeManager;
-      module.exports.chronoBankAsset = chronoBankAsset;
-      module.exports.chronoBankAssetProxy = chronoBankAssetProxy;
-      module.exports.chronoBankAssetWithFee = chronoBankAssetWithFee;
-      module.exports.chronoBankAssetWithFeeProxy = chronoBankAssetWithFeeProxy;
-      module.exports.vote = vote;
-      module.exports.multiEventsHistory = multiEventsHistory;
-    }).then(() => {
+      ])*/
+    ).then(() => {
       console.log('link addresses');
       Promise.all([
-        contractsManager.init(),
-        userManager.init(contracts.ContractsManager.address),
-        shareable.init(contracts.ContractsManager.address),
-        chronoMint.init(contracts.ContractsManager.address)
+        instances.ContractsManager.init(),
+        instances.UserManager.init(contracts.ContractsManager.address),
+        instances.PendingManager.init(contracts.ContractsManager.address),
+        instances.LOCManager.init(contracts.ContractsManager.address)
       ])
-
     }).then(() =>
-      Promise.each([
-        erc20Manager.init(contracts.ContractsManager.address),
-        exchangeManager.init(contracts.ContractsManager.address),
-        rewards.init(contracts.ContractsManager.address, 0),
-        vote.init(contracts.ContractsManager.address),
-        timeHolder.init(contracts.ContractsManager.address, contracts.ChronoBankAssetProxy.address),
-        chronoBankAsset.init(contracts.ChronoBankAssetProxy.address, {from: accounts[0]}),
-        chronoBankAssetWithFee.init(contracts.ChronoBankAssetWithFeeProxy.address, {from: accounts[0]}),
-        chronoBankAssetProxy.init(contracts.ChronoBankPlatform.address, TIME_SYMBOL, TIME_NAME, {from: accounts[0]}),
-        chronoBankAssetWithFeeProxy.init(contracts.ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME, {from: accounts[0]}),
-        timeHolder.addListener(rewards.address),
-        timeHolder.addListener(vote.address),
-        userManager.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(userManager.address),
-        shareable.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(shareable.address),
-        chronoMint.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(chronoMint.address),
-        erc20Manager.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(erc20Manager.address),
-        assetsManager.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(assetsManager.address),
-        exchangeManager.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(exchangeManager.address),
-        rewards.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(rewards.address),
-        vote.setupEventsHistory(multiEventsHistory.address),
-        multiEventsHistory.authorize(vote.address),
+      Promise.all([
+        instances.ERC20Manager.init(contracts.ContractsManager.address),
+        instances.ExchangeManager.init(contracts.ContractsManager.address),
+        instances.Rewards.init(contracts.ContractsManager.address, 0),
+        instances.Vote.init(contracts.ContractsManager.address),
+        instances.TimeHolder.init(contracts.ContractsManager.address, contracts.ChronoBankAssetProxy.address),
+        instances.ChronoBankAsset.init(contracts.ChronoBankAssetProxy.address, {from: accounts[0]}),
+        instances.ChronoBankAssetWithFee.init(contracts.ChronoBankAssetWithFeeProxy.address, {from: accounts[0]}),
+        instances.ChronoBankAssetProxy.init(contracts.ChronoBankPlatform.address, TIME_SYMBOL, TIME_NAME, {from: accounts[0]}),
+        instances.ChronoBankAssetWithFeeProxy.init(contracts.ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME, {from: accounts[0]}),
+        instances.TimeHolder.addListener(instances.Rewards.address),
+        instances.TimeHolder.addListener(instances.Vote.address),
+        instances.UserManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.UserManager.address),
+        instances.PendingManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.ChronoBankAsset.address),
+        instances.LOCManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.PendingManager.address),
+        instances.ERC20Manager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.ERC20Manager.address),
+        instances.AssetsManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.AssetsManager.address),
+        instances.ExchangeManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.ExchangeManager.address),
+        instances.Rewards.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.Rewards.address),
+        instances.Vote.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.Vote.address)
       ])
     )
     .then(() => {
       console.log('--add to chronoBankPlatform');
-      return chronoBankPlatform.setupEventsHistory(
+      return instances.ChronoBankPlatform.setupEventsHistory(
         contracts.EventsHistory.address,
         {from: accounts[0], gas: 3000000});
     }).then(() => {
@@ -198,14 +150,14 @@ let setup = function(callback) {
       ];
       return Promise.all(platformEvent.map(event => {
         console.log(`--addEmitter chronoBankPlatformEmitter.${event}`);
-        return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract[event].getData.apply(this, fakeArgs).slice(0, 10),
-          chronoBankPlatformEmitter.address,
+        return instances.EventsHistory.addEmitter(instances.ChronoBankPlatformEmitter.contract[event].getData.apply(this, fakeArgs).slice(0, 10),
+          instances.ChronoBankPlatformEmitter.address,
           {from: accounts[0], gas: 3000000}
         );
       })).catch(e => console.error('emitter error', e));
     }).then(() => {
       console.log('--update version in chronoBankPlatform');
-      return eventsHistory.addVersion(chronoBankPlatform.address, 'Origin', 'Initial version.');
+      return instances.EventsHistory.addVersion(instances.ChronoBankPlatform.address, 'Origin', 'Initial version.');
     }).catch(e => console.error(e => 'eventHistory error', e))
     .then(() => {
       callback();
@@ -215,5 +167,4 @@ let setup = function(callback) {
 };
 
 module.exports.setup = setup;
-module.exports.contractTypes = contractTypes;
-
+module.exports.contracts = instances;

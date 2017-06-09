@@ -36,7 +36,7 @@ beforeAll(() => {
     .then(()=>
     Promise.all([
       //chronoBankPlatformEmitter.at(helpers.setup.eventsHistory.address),
-      chronoMint.at(helpers.setup.multiEventsHistory.address)
+      chronoMint.at(helpers.setup.contracts.MultiEventsHistory.address)
     ])
     )
     .then((data) => {
@@ -74,7 +74,7 @@ test('add new loc', () => {
         currency: helpers.bytes32('LHT')
 
       };
-      return helpers.setup.chronoMint.addLOC(
+      return helpers.setup.contracts.LOCManager.addLOC(
         factory.Loc.name,
         factory.Loc.website,
         factory.Loc.issueLimit,
@@ -95,7 +95,7 @@ test('fetch changes for loc via getLoc', () =>
     contracts.mint.allEvents({fromBlock: 0}).watch((err, result) => {
       if (result && result.event === 'NewLOC') {
         expect(result.args.locName).toBeDefined();
-        helpers.setup.chronoMint.getLOCByName(result.args.locName)
+        helpers.setup.contracts.LOCManager.getLOCByName(result.args.locName)
           .then(data => {
             if (data[4] === factory.Loc.hash) {
               res();
