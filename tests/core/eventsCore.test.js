@@ -9,70 +9,38 @@ const config = require('../../config.json'),
   helpers = require('../helpers'),
   chronoBankPlatformEmitter_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatformEmitter"),
   chronoBankPlatform_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatform"),
-  chronoMintEmitter_definition = require("../../SmartContracts/build/contracts/ChronoMintEmitter"),
-  chronoMint_definition = require("../../SmartContracts/build/contracts/ChronoMint"),
-  eventsHistory_definition = require("../../SmartContracts/build/contracts/EventsHistory"),
-  userManager_definition = require("../../SmartContracts/build/contracts/UserManager"),
+  chronomint_definition = require("../../SmartContracts/build/contracts/LOCManager"),
   mongoose = require('mongoose'),
   emitters = {},
   contracts = {},
   factory = {};
 
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
+
 beforeAll(() => {
-  let fakeArgs = [0, 0, 0, 0, 0, 0, 0, 0];
   web3.setProvider(provider);
   let chronoBankPlatform = contract(chronoBankPlatform_definition);
   let chronoBankPlatformEmitter = contract(chronoBankPlatformEmitter_definition);
-  let chronoMintEmitter = contract(chronoMintEmitter_definition);
-  let eventsHistory = contract(eventsHistory_definition);
-  let chronoMint = contract(chronoMint_definition);
-  let userManager = contract(userManager_definition);
+  let chronoMint = contract(chronomint_definition);
 
-  [chronoBankPlatform, chronoBankPlatformEmitter, chronoMintEmitter, eventsHistory, chronoMint, userManager]
+
+  [chronoBankPlatform, chronoBankPlatformEmitter, chronoMint]
     .forEach(c => {
       c.defaults({from: web3.eth.coinbase, gas: 3000000});
       c.setProvider(provider);
     });
 
-  return Promise.all([
-    eventsHistory.deployed(),
-    chronoMintEmitter.deployed(),
-    chronoBankPlatformEmitter.deployed(),
-    chronoBankPlatform.deployed(),
-    chronoMint.deployed(),
-    userManager.deployed()
-  ])
-    .spread((EventsHistory, ChronoMintEmitter, ChronoBankPlatformEmitter, ChronoBankPlatform, ChronoMint, UserManager) => {
-      return Promise.all([
-        ChronoMint,
-        ChronoBankPlatform,
-        ChronoBankPlatform.setupEventsHistory(EventsHistory.address, {gas: 3000000}),
-        ChronoMint.setupEventsHistory(EventsHistory.address, {gas: 3000000}),
-        UserManager.setupEventsHistory(EventsHistory.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoMintEmitter.contract.newLOC.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoMintEmitter.contract.hashUpdate.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoMintEmitter.contract.cbeUpdate.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoMintEmitter.contract.cbeUpdate.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoMintEmitter.contract.updLOCValue.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitTransfer.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitIssue.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitRevoke.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitOwnershipChange.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitApprove.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitRecovery.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
-        EventsHistory.addEmitter(ChronoBankPlatformEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {gas: 3000000}),
-        EventsHistory.addVersion(ChronoBankPlatform.address, "Origin", "Initial version."),
-        EventsHistory.addVersion(ChronoMint.address, "Origin", "Initial version."),
-        EventsHistory.addVersion(UserManager.address, "Origin", "Initial version."),
-        chronoBankPlatformEmitter.at(EventsHistory.address),
-        chronoMintEmitter.at(EventsHistory.address)
-      ])
-    })
+  return new Promise((res) =>
+    helpers.setup.setup(res)
+  )
+    .then(()=>
+    Promise.all([
+      //chronoBankPlatformEmitter.at(helpers.setup.eventsHistory.address),
+      chronoMint.at(helpers.setup.multiEventsHistory.address)
+    ])
+    )
     .then((data) => {
-      contracts.mint = data[0];
-      contracts.platform = data[1];
-      emitters.mint = data[data.length - 1];
-      emitters.platform = data[data.length - 2];
+      contracts.mint = _.last(data);
       return mongoose.connect(config.mongo.uri);
     })
 });
@@ -106,7 +74,7 @@ test('add new loc', () => {
         currency: helpers.bytes32('LHT')
 
       };
-      return contracts.mint.addLOC(
+      return helpers.setup.chronoMint.addLOC(
         factory.Loc.name,
         factory.Loc.website,
         factory.Loc.issueLimit,
@@ -124,10 +92,10 @@ test('add new loc', () => {
 
 test('fetch changes for loc via getLoc', () =>
   new Promise(res => {
-    emitters.mint.allEvents({fromBlock: 0}).watch((err, result) => {
+    contracts.mint.allEvents({fromBlock: 0}).watch((err, result) => {
       if (result && result.event === 'NewLOC') {
         expect(result.args.locName).toBeDefined();
-        contracts.mint.getLOCByName(result.args.locName)
+        helpers.setup.chronoMint.getLOCByName(result.args.locName)
           .then(data => {
             if (data[4] === factory.Loc.hash) {
               res();
@@ -137,6 +105,7 @@ test('fetch changes for loc via getLoc', () =>
     });
   })
 );
+/*
 
 test('validate hash in mongo', () =>
   Promise.delay(2000)
@@ -154,7 +123,8 @@ test('validate hash in mongo', () =>
       return Promise.resolve();
     })
 );
-
+*/
+/*
 test('update loc', () => {
 
   const obj = {
@@ -191,7 +161,7 @@ test('update loc', () => {
 
 test('fetch changes for loc via getLoc', () =>
   new Promise(res => {
-    emitters.mint.allEvents({fromBlock: 0}).watch((err, result) => {
+    contracts.mint.allEvents({fromBlock: 0}).watch((err, result) => {
       if (result && result.event === 'UpdLOCValue') {
         expect(result.args.locName).toBeDefined();
         contracts.mint.getLOCByName(result.args.locName)
@@ -207,7 +177,7 @@ test('fetch changes for loc via getLoc', () =>
 
 test('fetch changes for loc via HashUpdate event', () =>
   new Promise(res => {
-    emitters.mint.allEvents({fromBlock: 0}).watch((err, result) => {
+    contracts.mint.allEvents({fromBlock: 0}).watch((err, result) => {
       if (result && result.event === 'HashUpdate' && result.args.newHash === factory.Loc.hash) {
         res();
       }
@@ -229,4 +199,4 @@ test('validate new hash in mongo', () =>
       return Promise.resolve();
     })
 );
-
+*/
