@@ -1,97 +1,122 @@
-const _ = require('lodash'),
-  Web3 = require('web3'),
+const Web3 = require('web3'),
   web3 = new Web3(),
-  config = require('../config.json'),
-  require_all = require('require-all'),
-  path = require('path'),
   contract = require('truffle-contract'),
-  mongoose = require('mongoose'),
+  config = require('../config.json'),
+  provider = new Web3.providers.HttpProvider(config.web3.url),
+  path = require('path'),
+  require_all = require('require-all'),
+  _ = require('lodash'),
   Promise = require('bluebird'),
-  contracts = require_all({
-    dirname: path.join(__dirname, '..', 'SmartContracts', 'build', 'contracts'),
-    filter: /(.+)\.json$/,
-  });
+  accounts = [],
+  instances = {},
+  contracts = {};
 
-/**
- * @module contracts Controller
- * @description initialize all events for smartContracts,
- * and prepare collections in mongo for them
- * @returns {{eventModels, initEmitter, contracts: (Function|*)}}
- */
+web3.setProvider(provider);
+
+const TIME_SYMBOL = 'TIME';
+const TIME_NAME = 'Time Token';
+
+const LHT_SYMBOL = 'LHT';
+const LHT_NAME = 'Labour-hour Token';
+
+const fakeArgs = [0, 0, 0, 0, 0, 0, 0, 0];
 
 module.exports = () => {
 
-  const provider = new Web3.providers.HttpProvider(config.web3.url);
-
-  web3.setProvider(provider);
-
-  let ChronoBankPlatform = contract(contracts.ChronoBankPlatform);
-  let ChronoBankPlatformEmitter = contract(contracts.ChronoBankPlatformEmitter);
-  let ChronoMintEmitter = contract(contracts.ChronoMintEmitter);
-  let EventsHistory = contract(contracts.EventsHistory);
-  let ChronoMint = contract(contracts.ChronoMint);
-  let UserManager = contract(contracts.UserManager);
-
-  [ChronoBankPlatform, ChronoBankPlatformEmitter, ChronoMintEmitter, EventsHistory, ChronoMint, UserManager]
-    .forEach(c => {
-      c.defaults({from: web3.eth.coinbase, gas: 3000000});
-      c.setProvider(provider);
+  return new Promise(resolve => {
+    web3.eth.getAccounts((err, acc) => {
+      accounts.push(...acc);
+      resolve();
     });
-
-  let eventModels = _.chain([ChronoBankPlatformEmitter, ChronoMintEmitter])
-    .map(emitter =>
-      _.chain(emitter).get('abi')
-        .filter({type: 'event'})
-        .value()
+  })
+    .then(() =>
+      require_all({
+        dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
+        filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
+        resolve: Contract => {
+          let c = contract(Contract);
+          c.defaults({from: accounts[0], gas: 3000000});
+          c.setProvider(provider);
+          return c;
+        }
+      })
     )
-    .flatten()
-    .uniqBy('name')
-    .transform((result, ev) => {
-      result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
-        _.chain(ev.inputs).transform((result, obj) => {
-          result[obj.name] = {type: new RegExp(/uint/).test(obj.type) ?
-            Number : mongoose.Schema.Types.Mixed};
-        }, {}).merge({
-          created: {type: Date, required: true, default: Date.now}
-        }).value()
-      ));
-    }, {})
-    .value();
-
-  let initEmitter = Promise.all([
-    EventsHistory.deployed(),
-    ChronoMintEmitter.deployed(),
-    ChronoBankPlatform.deployed(),
-    ChronoMint.deployed(),
-    UserManager.deployed()
-  ])
-    .spread((eventsHistory, chronoMintEmitter, chronoBankPlatform, chronoMint, userManager) =>
+    .then((contracts_set) => {
+      _.merge(contracts, contracts_set);
+      return Promise.all(
+        _.map(contracts, c =>
+          c.deployed()
+            .then(instance => {
+              return _.set(instances, c.toJSON().contract_name, instance);
+            }).catch(err => {})
+        )
+      );
+    })
+    .then(() =>
       Promise.all([
-        chronoBankPlatform.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
-        chronoMint.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
-        userManager.setupEventsHistory(eventsHistory.address, {gas: 3000000}),
-        ChronoBankPlatformEmitter.at(eventsHistory.address),
-        ChronoMintEmitter.at(eventsHistory.address)
+        instances.ContractsManager.init(),
+        instances.UserManager.init(contracts.ContractsManager.address),
+        instances.PendingManager.init(contracts.ContractsManager.address),
+        instances.LOCManager.init(contracts.ContractsManager.address)
       ])
-    ).then(data => {
-      return {
-        mint: data[data.length - 1],
-        platform: data[data.length - 2]
-      };
+    )
+    .then(() =>
+      Promise.all([
+        instances.ERC20Manager.init(contracts.ContractsManager.address),
+        instances.ExchangeManager.init(contracts.ContractsManager.address),
+        instances.Rewards.init(contracts.ContractsManager.address, 0),
+        instances.Vote.init(contracts.ContractsManager.address),
+        instances.TimeHolder.init(contracts.ContractsManager.address, contracts.ChronoBankAssetProxy.address),
+        instances.ChronoBankAsset.init(contracts.ChronoBankAssetProxy.address, {from: accounts[0]}),
+        instances.ChronoBankAssetWithFee.init(contracts.ChronoBankAssetWithFeeProxy.address, {from: accounts[0]}),
+        instances.ChronoBankAssetProxy.init(contracts.ChronoBankPlatform.address, TIME_SYMBOL, TIME_NAME, {from: accounts[0]}),
+        instances.ChronoBankAssetWithFeeProxy.init(contracts.ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME, {from: accounts[0]}),
+        instances.TimeHolder.addListener(instances.Rewards.address),
+        instances.TimeHolder.addListener(instances.Vote.address),
+        instances.UserManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.UserManager.address),
+        instances.PendingManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.ChronoBankAsset.address),
+        instances.LOCManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.PendingManager.address),
+        instances.ERC20Manager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.ERC20Manager.address),
+        instances.AssetsManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.AssetsManager.address),
+        instances.ExchangeManager.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.ExchangeManager.address),
+        instances.Rewards.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.Rewards.address),
+        instances.Vote.setupEventsHistory(instances.MultiEventsHistory.address),
+        instances.MultiEventsHistory.authorize(instances.Vote.address)
+      ])
+    )
+    .then(() =>
+      Promise.all(
+        _.chain(instances.ChronoBankPlatformEmitter.abi)
+          .filter(event =>
+            event.type === 'event' &&
+            _.has(instances.ChronoBankPlatformEmitter.contract[event.name], 'getData')
+          )
+          .map(ev => {
+            return instances.EventsHistory.addEmitter(instances.ChronoBankPlatformEmitter.contract[ev.name].getData.apply(this, fakeArgs).slice(0, 10),
+              instances.ChronoBankPlatformEmitter.address,
+              {from: web3.eth.coinbase, gas: 3000000}
+            );
+          })
+          .union([
+            instances.ChronoBankPlatform.setupEventsHistory(
+              contracts.EventsHistory.address,
+              {from: web3.eth.coinbase, gas: 3000000}),
+            instances.EventsHistory.addVersion(instances.ChronoBankPlatform.address, 'Origin', 'Initial version.')
+          ])
+          .value()
+      )
+    )
+    .then(() =>
+      Promise.resolve({instances, contracts})
+    )
+    .catch(function(e) {
+      console.log(e);
     });
-
-  let initContracts = Promise.all([
-    ChronoBankPlatform.deployed(),
-    ChronoMint.deployed()
-  ])
-    .spread((platform, mint) =>
-      Promise.resolve({platform, mint})
-    );
-
-  return {
-    eventModels: eventModels,
-    initEmitter: initEmitter,
-    contracts: initContracts
-  };
-
 };
