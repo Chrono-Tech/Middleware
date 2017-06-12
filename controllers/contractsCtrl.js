@@ -30,16 +30,18 @@ module.exports = () => {
     });
   })
     .then(() =>
-      require_all({
-        dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
-        filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
-        resolve: Contract => {
-          let c = contract(Contract);
-          c.defaults({from: accounts[0], gas: 3000000});
-          c.setProvider(provider);
-          return c;
-        }
-      })
+      Promise.resolve(
+        require_all({
+          dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
+          filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
+          resolve: Contract => {
+            let c = contract(Contract);
+            c.defaults({from: accounts[0], gas: 3000000});
+            c.setProvider(provider);
+            return c;
+          }
+        })
+      )
     )
     .then((contracts_set) => {
       _.merge(contracts, contracts_set);
@@ -48,7 +50,8 @@ module.exports = () => {
           c.deployed()
             .then(instance => {
               return _.set(instances, c.toJSON().contract_name, instance);
-            }).catch(err => {})
+            }).catch(err => {
+          })
         )
       );
     })
