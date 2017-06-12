@@ -4,7 +4,7 @@ if exist SmartContracts rd /s /q SmartContracts
 ECHO downloading repo...
 
 git clone -b develop https://github.com/Mikefluff/SmartContracts.git
-cd SmartContracts && git checkout b64a0bd930c094fdf374522839828c0b2bc2730b
+cd SmartContracts && git checkout 7cbfaaba94e5308b9642e6da5413e9c9f9828f1b
 
 ECHO installing...
 
