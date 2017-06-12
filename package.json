@@ -1,0 +1,38 @@
+{
+  "name": "ipfs_eth_daemon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
+    "test": "node ./node_modules/jest/bin/jest.js --coverage --runInBand",
+    "testrpc": "node ./node_modules/ethereumjs-testrpc/bin/testrpc",
+    "prepare_linux": "bash prepare_env_linux.sh",
+    "prepare_linux_install": "bash prepare_env_linux.sh --install",
+    "prepare_win": "prepare_env_win.bat",
+    "prepare_win_install": "prepare_env_win.bat --install"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bunyan": "^1.8.10",
+    "express": "^4.15.3",
+    "ipfs-api": "^14.0.2",
+    "lodash": "^4.17.4",
+    "mongoose": "^4.10.4",
+    "node-schedule": "^1.2.3",
+    "query-to-mongo": "^0.6.2",
+    "require-all": "^2.2.0",
+    "truffle-contract": "^2.0.0",
+    "web3": "^0.19.0",
+    "query-to-mongo-and-back": "git+https://github.com/ega-forever/query-to-mongo-and-back.git#develop"
+  },
+  "devDependencies": {
+    "cron-parser": "^2.4.0",
+    "eslint": "^3.19.0",
+    "jest": "^20.0.4",
+    "moment": "^2.18.1",
+    "ethereumjs-testrpc": "mikefluff/testrpc",
+    "coveralls": "^2.13.1"
+  }
+}
