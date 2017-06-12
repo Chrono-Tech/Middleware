@@ -14,7 +14,7 @@ const pinModel = require('./models/pinModel'),
 module.exports = (events, contracts) => {
 
   events.on('NewLOC', args => {
-    contracts.mint.getLOCByName(args.locName)
+    contracts.instances.LOCManager.getLOCByName(args.locName)
       .then(data => {
         let pin = new pinModel({hash: bytes32toBase58(data[4])});
         pin.save();

@@ -35,12 +35,16 @@ contractsCtrl()
     let block = data[1];
 
     block = _.chain(block).get('block', 0).add(0).value();
-    let addr = contract_instances.MultiEventsHistory.address;
+    let multi_addr = contract_instances.MultiEventsHistory.address;
+    let history_addr = contract_instances.EventsHistory.address;
     let eventEmitter = new emitter();
 
-    _.chain(contracts).values()
-      .forEach(instance => {
-        let events = instance.at(addr).allEvents({fromBlock: block, toBlock: 'latest'});
+    _.chain(contracts)
+      .forEach((instance, name) => {
+
+        let events = name === 'ChronoBankPlatformEmitter' ?
+          instance.at(history_addr).allEvents({fromBlock: block, toBlock: 'latest'}) :
+          instance.at(multi_addr).allEvents({fromBlock: block, toBlock: 'latest'});
 
         events.watch((error, result) => {
 
@@ -58,10 +62,9 @@ contractsCtrl()
       .value();
 
     // register all plugins
-/*
     _.chain(plugins).values()
-      .forEach(plugin => plugin(eventEmitter, contracts, eventModels))
+      .forEach(plugin => plugin(eventEmitter, data[0].contracts, eventModels))
       .value();
-*/
+
 
   });
