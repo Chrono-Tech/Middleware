@@ -26,6 +26,7 @@ module.exports = (contracts) => {
               Number : mongoose.Schema.Types.Mixed
           };
         }, {}).merge({
+          network: {type: String},
           created: {type: Date, required: true, default: Date.now}
         }).value()
       ));

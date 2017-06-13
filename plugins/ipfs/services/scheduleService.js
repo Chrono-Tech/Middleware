@@ -3,7 +3,7 @@ const schedule = require('node-schedule'),
   ipfsAPI = require('ipfs-api'),
   _ = require('lodash'),
   bunyan = require('bunyan'),
-  config = require('../../../config.json'),
+  config = require('../../../config'),
   Promise = require('bluebird'),
   log = bunyan.createLogger({name: 'plugins.ipfs.scheduleService'});
 

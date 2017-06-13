@@ -1,11 +1,11 @@
-const config = require('../../config.json'),
+const config = require('../../config'),
   Web3 = require('web3'),
   web3 = new Web3(),
   contract = require("truffle-contract"),
   _ = require('lodash'),
   ipfsAPI = require('ipfs-api'),
   Promise = require('bluebird'),
-  provider = new Web3.providers.HttpProvider(config.web3.url),
+  provider = new Web3.providers.HttpProvider(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`),
   helpers = require('../helpers'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   chronoBankPlatformEmitter_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatformEmitter"),
@@ -30,7 +30,7 @@ beforeAll(() => {
       c.setProvider(provider);
     });
 
-  return contractsCtrl()
+  return contractsCtrl(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`)
     .then((data) => {
       _.merge(contracts_instances, data.instances);
       _.merge(contracts, data.contracts);

@@ -1,8 +1,7 @@
 const Web3 = require('web3'),
   web3 = new Web3(),
   contract = require('truffle-contract'),
-  config = require('../config.json'),
-  provider = new Web3.providers.HttpProvider(config.web3.url),
+  config = require('../config'),
   path = require('path'),
   require_all = require('require-all'),
   _ = require('lodash'),
@@ -10,8 +9,6 @@ const Web3 = require('web3'),
   accounts = [],
   instances = {},
   contracts = {};
-
-web3.setProvider(provider);
 
 const TIME_SYMBOL = 'TIME';
 const TIME_NAME = 'Time Token';
@@ -21,7 +18,10 @@ const LHT_NAME = 'Labour-hour Token';
 
 const fakeArgs = [0, 0, 0, 0, 0, 0, 0, 0];
 
-module.exports = () => {
+module.exports = (provider_addr) => {
+
+  let provider = new Web3.providers.HttpProvider('http://localhost:8547');
+  web3.setProvider(provider);
 
   return new Promise(resolve => {
     web3.eth.getAccounts((err, acc) => {
@@ -50,8 +50,7 @@ module.exports = () => {
           c.deployed()
             .then(instance => {
               return _.set(instances, c.toJSON().contract_name, instance);
-            }).catch(err => {
-          })
+            }).catch(err => {})
         )
       );
     })
@@ -104,13 +103,13 @@ module.exports = () => {
           .map(ev => {
             return instances.EventsHistory.addEmitter(instances.ChronoBankPlatformEmitter.contract[ev.name].getData.apply(this, fakeArgs).slice(0, 10),
               instances.ChronoBankPlatformEmitter.address,
-              {from: web3.eth.coinbase, gas: 3000000}
+              {from: accounts[0], gas: 3000000}
             );
           })
           .union([
             instances.ChronoBankPlatform.setupEventsHistory(
               contracts.EventsHistory.address,
-              {from: web3.eth.coinbase, gas: 3000000}),
+              {from: accounts[0], gas: 3000000}),
             instances.EventsHistory.addVersion(instances.ChronoBankPlatform.address, 'Origin', 'Initial version.')
           ])
           .value()
