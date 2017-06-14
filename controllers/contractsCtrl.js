@@ -5,10 +5,7 @@ const Web3 = require('web3'),
   path = require('path'),
   require_all = require('require-all'),
   _ = require('lodash'),
-  Promise = require('bluebird'),
-  accounts = [],
-  instances = {},
-  contracts = {};
+  Promise = require('bluebird');
 
 const TIME_SYMBOL = 'TIME';
 const TIME_NAME = 'Time Token';
@@ -19,6 +16,10 @@ const LHT_NAME = 'Labour-hour Token';
 const fakeArgs = [0, 0, 0, 0, 0, 0, 0, 0];
 
 module.exports = (provider_config) => {
+
+  const accounts = [],
+    instances = {},
+    contracts = {};
 
   let provider = new Web3.providers.HttpProvider(`http://${provider_config.host}:${provider_config.port}`);
   web3.setProvider(provider);
@@ -32,7 +33,6 @@ module.exports = (provider_config) => {
 
     web3.eth.getAccounts((err, acc) => {
       accounts.push(...acc);
-      console.log(acc)
       resolve();
     });
   })
@@ -42,7 +42,6 @@ module.exports = (provider_config) => {
           dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
           filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
           resolve: Contract => {
-            //console.log(accounts[0]);
             let c = contract(Contract);
             c.defaults({from: accounts[0], gas: 3000000});
             c.setProvider(provider);
@@ -63,14 +62,15 @@ module.exports = (provider_config) => {
         )
       );
     })
-    .then(() =>
-      Promise.all([
+    .then(() => {
+      console.log(accounts)
+      return Promise.all([
         instances.ContractsManager.init(),
         instances.UserManager.init(contracts.ContractsManager.address),
         instances.PendingManager.init(contracts.ContractsManager.address),
         instances.LOCManager.init(contracts.ContractsManager.address)
-      ])
-    )
+      ]);
+    })
     .then(() =>
       Promise.all([
         instances.ERC20Manager.init(contracts.ContractsManager.address),
