@@ -16,6 +16,8 @@ const express = require('express'),
 
 module.exports = (events, contracts, models) => {
 
+  return;
+
   app.get('/', (req, res) => {
     res.send({
       status: 1

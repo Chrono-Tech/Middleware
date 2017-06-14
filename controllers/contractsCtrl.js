@@ -18,14 +18,21 @@ const LHT_NAME = 'Labour-hour Token';
 
 const fakeArgs = [0, 0, 0, 0, 0, 0, 0, 0];
 
-module.exports = (provider_addr) => {
+module.exports = (provider_config) => {
 
-  let provider = new Web3.providers.HttpProvider('http://localhost:8547');
+  let provider = new Web3.providers.HttpProvider(`http://${provider_config.host}:${provider_config.port}`);
   web3.setProvider(provider);
 
   return new Promise(resolve => {
+
+    if (provider_config.from) {
+      accounts.push(provider_config.from);
+      return resolve();
+    }
+
     web3.eth.getAccounts((err, acc) => {
       accounts.push(...acc);
+      console.log(acc)
       resolve();
     });
   })
@@ -35,6 +42,7 @@ module.exports = (provider_addr) => {
           dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
           filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
           resolve: Contract => {
+            //console.log(accounts[0]);
             let c = contract(Contract);
             c.defaults({from: accounts[0], gas: 3000000});
             c.setProvider(provider);
@@ -50,7 +58,8 @@ module.exports = (provider_addr) => {
           c.deployed()
             .then(instance => {
               return _.set(instances, c.toJSON().contract_name, instance);
-            }).catch(err => {})
+            }).catch(err => {
+          })
         )
       );
     })
