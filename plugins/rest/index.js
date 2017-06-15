@@ -9,14 +9,14 @@ const express = require('express'),
 /**
  * @module rest
  * @description expose event collections via rest api
- * @param events events from all smartContracts
- * @param contracts instances of smartContracts
- * @param models instances of mongoose models
+ * @param ctx - context of app, includes {events: *,
+ *    contracts_instances: *,
+ *    eventModels: *,
+ *    contracts: *}
  */
 
-module.exports = (events, contracts, models) => {
+module.exports = (ctx) => {
 
-  return;
 
   app.get('/', (req, res) => {
     res.send({
@@ -25,10 +25,10 @@ module.exports = (events, contracts, models) => {
   });
 
   collectionRouter.get('/', (req, res) => {
-    res.send(Object.keys(models));
+    res.send(Object.keys(ctx.eventModels));
   });
 
-  _.forEach(models, (model, name) => {
+  _.forEach(ctx.eventModels, (model, name) => {
     collectionRouter.get(`/${name}`, (req, res) => {
       let q = q2mb.fromQuery(req.query);
       model.find(q.criteria, q.options.fields)

@@ -6,6 +6,8 @@ const mongoose = require('mongoose'),
   emitter = require('events'),
   _ = require('lodash'),
   plugins = require('./plugins'),
+  bunyan = require('bunyan'),
+  log = bunyan.createLogger({name: 'app'}),
   Promise = require('bluebird');
 
 /**
@@ -61,13 +63,17 @@ Promise.all(
 
     _.forEach(payload, (data, network) => {
 
+      let local_contracts = _.cloneDeep(contracts);
+
       let contract_instances = data.contracts;
       let block = data.block;
 
       let multi_addr = contract_instances.MultiEventsHistory.address;
       let history_addr = contract_instances.EventsHistory.address;
 
-      _.forEach(contracts, (instance, name) => {
+      log.info(`search from block:${block} for network:${network}`);
+
+      _.forEach(local_contracts, (instance, name) => {
 
         let events = name === 'ChronoBankPlatformEmitter' ?
           instance.at(history_addr).allEvents({fromBlock: block, toBlock: 'latest'}) :
@@ -90,6 +96,7 @@ Promise.all(
     });
 
     // register all plugins
+/*
     _.chain(plugins).values()
       .forEach(plugin => plugin({
         events: eventEmitter,
@@ -98,5 +105,6 @@ Promise.all(
         contracts: contracts
       }))
       .value();
+*/
 
   });

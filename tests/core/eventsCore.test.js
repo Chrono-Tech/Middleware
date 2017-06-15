@@ -5,7 +5,6 @@ const config = require('../../config'),
   _ = require('lodash'),
   ipfsAPI = require('ipfs-api'),
   Promise = require('bluebird'),
-  provider = new Web3.providers.HttpProvider(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`),
   helpers = require('../helpers'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   chronoBankPlatformEmitter_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatformEmitter"),
@@ -19,6 +18,7 @@ const config = require('../../config'),
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
 
 beforeAll(() => {
+  let provider = new Web3.providers.HttpProvider(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`);
   web3.setProvider(provider);
   let chronoBankPlatform = contract(chronoBankPlatform_definition);
   let chronoBankPlatformEmitter = contract(chronoBankPlatformEmitter_definition);
@@ -30,7 +30,7 @@ beforeAll(() => {
       c.setProvider(provider);
     });
 
-  return contractsCtrl(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`)
+  return contractsCtrl(config.web3.networks.development)
     .then((data) => {
       _.merge(contracts_instances, data.instances);
       _.merge(contracts, data.contracts);
@@ -72,8 +72,8 @@ test('add new loc', () => {
         hash: helpers.bytes32fromBase58(data[0].toJSON().multihash),
         expDate: Math.round(+new Date() / 1000),
         currency: helpers.bytes32('LHT')
-
       };
+
       return contracts_instances.LOCManager.addLOC(
         factory.Loc.name,
         factory.Loc.website,
@@ -84,6 +84,7 @@ test('add new loc', () => {
       )
     })
     .then(result => {
+      console.log(result);
       expect(result).toBeDefined();
       expect(result.tx).toBeDefined();
       return Promise.resolve();
@@ -156,18 +157,16 @@ test('update loc', () => {
     })
 });
 
-
 test('fetch changes for loc via HashUpdate event', () =>
   new Promise(res => {
     contracts.LOCManager.at(contracts_instances.MultiEventsHistory.address)
-    .allEvents({fromBlock: 0}).watch((err, result) => {
+      .allEvents({fromBlock: 0}).watch((err, result) => {
       if (result && result.event === 'HashUpdate' && result.args.newHash === factory.Loc.hash) {
         res();
       }
     });
   })
 );
-
 
 test('validate new hash in mongo', () =>
   Promise.delay(2000)

@@ -8,8 +8,10 @@ const pinModel = require('./models/pinModel'),
  * @description listen for changes on smartContract's Loc hash,
  * update them in db in 'pins' collections, and runs a 'ping to ipfs' task
  * by scheduler
- * @param events events from all smartContracts
- * @param contracts instances of smartContracts
+ * @param ctx - context of app, includes {events: *,
+ *    contracts_instances: *,
+ *    eventModels: *,
+ *    contracts: *}
  */
 
 module.exports = (ctx) => {
