@@ -16,25 +16,27 @@ const pinModel = require('./models/pinModel'),
 
 module.exports = (ctx) => {
 
-  _.forEach(ctx.contracts_instances, (data, network) => {
-    let contract_instances = data.contracts;
-    ctx.events.on(`NewLOC:${network}`, args => {
-      contract_instances.LOCManager.getLOCByName(args.locName)
-        .then(data => {
-          let pin = new pinModel({
-            hash: bytes32toBase58(data[4]),
-            network: network
-          });
-          pin.save();
-        });
-    });
+  let chain = Promise.resolve();
 
-    ctx.events.on(`HashUpdate:${network}`, args => {
+  ctx.events.on('NewLOC', args => {
+    ctx.contract_instances.LOCManager.getLOCByName(args.locName)
+      .then(data => {
+        let pin = new pinModel({
+          hash: bytes32toBase58(data[4]),
+          network: ctx.network
+        });
+
+        chain = chain.delay(1000).then(() => pin.save());
+      });
+  });
+
+  ctx.events.on('HashUpdate', args => {
+    chain = chain.delay(1000).then(() =>
       pinModel.update(
-        {hash: args.oldHash, network: network},
+        {hash: args.oldHash, network: ctx.network},
         {updated: Date.now(), hash: args.newHash}
-      );
-    });
+      )
+    );
   });
 
   scheduleService();

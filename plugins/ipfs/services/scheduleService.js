@@ -13,12 +13,13 @@ const schedule = require('node-schedule'),
  * @see {@link ../../../config.json}
  */
 
-module.exports = () => {
+module.exports = (network) => {
 
   const ipfs_stack = config.nodes.map(node => ipfsAPI(node));
 
   schedule.scheduleJob(config.schedule.job, () => {
     pinModel.find({
+      network: network,
       updated: {$lt: new Date(new Date() - config.schedule.check_time * 1000)}
     })
       .then(records =>

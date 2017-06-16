@@ -8,7 +8,8 @@ const mongoose = require('mongoose'),
   plugins = require('./plugins'),
   bunyan = require('bunyan'),
   log = bunyan.createLogger({name: 'app'}),
-  Promise = require('bluebird');
+  Promise = require('bluebird'),
+  cluster = require('cluster');
 
 /**
  * @module entry point
@@ -16,95 +17,85 @@ const mongoose = require('mongoose'),
  * listen for changes, and notify plugins.
  */
 
+const networks = _.keys(config.web3.networks);
+const workers = {};
+
+if (cluster.isMaster) {
+  for (let i = 0; i < networks.length; i++) {
+    workers[i + 1] = networks[i];
+    cluster.fork({network: networks[i]});
+  }
+
+  cluster.on('exit', worker => {
+    log.error(`worker with pid:${worker.id} is dead`);
+
+    let network = workers[worker.id];
+    let new_id = _.chain(workers).keys().size().add(1).value();
+    workers[new_id] = network;
+    delete workers[worker.id];
+
+    cluster.fork({network: network});
+
+  });
+
+  return;
+}
 
 mongoose.connect(config.mongo.uri);
 
-Promise.all(
-  _.map(config.web3.networks, (value, name) =>
-    contractsCtrl(value)
-      .then(contracts => {
-        return {
-          contracts: contracts,
-          network: name
-        };
-      })
-  )
-)
-  .then(data =>
-    Promise.all(
-      _.chain(data)
-        .map(node =>
-          blockModel.findOne({network: node.network}).sort('-block')
-            .then(block =>
-              _.merge(node, {block: block})
-            )
-        )
-        .union([
-          eventsCtrl(data[0].contracts.instances).eventModels
-        ])
-        .value()
-    )
-  )
-  .then(data => {
+let network = process.env.network;
 
-    let payload = _.chain(data)
-      .initial()
-      .transform((result, item) => {
-        _.set(result, item.network, {
-          contracts: item.contracts.instances,
-          block: _.chain(item.block).get('block', 0).add(0).value()
-        });
-      }, {})
-      .value();
+Promise.all([
+  contractsCtrl(config.web3.networks[network]),
+  blockModel.findOne({network: network}).sort('-block')
 
-    let eventModels = _.last(data);
+])
+  .spread((contracts_ctx, block) => {
+
+    let contracts = contracts_ctx.contracts;
+    let contract_instances = contracts_ctx.instances;
+    block = _.chain(block).get('block', 0).add(0).value();
+    let eventModels = eventsCtrl(contract_instances).eventModels;
     let eventEmitter = new emitter();
-    let contracts = _.chain(data).values().get('0.contracts.contracts').value();
 
-    _.forEach(payload, (data, network) => {
+    let multi_addr = contract_instances.MultiEventsHistory.address;
+    let history_addr = contract_instances.EventsHistory.address;
 
-      let local_contracts = _.cloneDeep(contracts);
+    log.info(`search from block:${block} for network:${network}`);
+    let chain = Promise.resolve();
 
-      let contract_instances = data.contracts;
-      let block = data.block;
+    _.forEach(contracts, (instance, name) => {
 
-      let multi_addr = contract_instances.MultiEventsHistory.address;
-      let history_addr = contract_instances.EventsHistory.address;
+      let events = name === 'ChronoBankPlatformEmitter' ?
+        instance.at(history_addr).allEvents({fromBlock: block, toBlock: 'latest'}) :
+        instance.at(multi_addr).allEvents({fromBlock: block, toBlock: 'latest'});
 
-      log.info(`search from block:${block} for network:${network}`);
+      events.watch((error, result) => {
 
-      _.forEach(local_contracts, (instance, name) => {
+        //console.log(error || result);
+        if (!_.has(result, 'event') || !eventModels[result.event] || result.blockNumber <= block) {
+          return;
+        }
 
-        let events = name === 'ChronoBankPlatformEmitter' ?
-          instance.at(history_addr).allEvents({fromBlock: block, toBlock: 'latest'}) :
-          instance.at(multi_addr).allEvents({fromBlock: block, toBlock: 'latest'});
+        let new_event = new eventModels[result.event](_.merge(result.args, {network: network}));
+        chain = chain.delay(1000).then(() => new_event.save());
 
-        events.watch((error, result) => {
-
-          if (!_.has(result, 'event') || !eventModels[result.event] || result.blockNumber <= block) {
-            return;
-          }
-          let new_event = new eventModels[result.event](_.merge(result.args, {network: network}));
-          new_event.save();
-          let new_block = new blockModel({block: result.blockNumber, network: network});
-          new_block.save();
-          eventEmitter.emit(`${result.event}:${network}`, result.args);
-        });
-
+        let new_block = new blockModel({block: result.blockNumber, network: network});
+        chain = chain.delay(1000).then(() => new_block.save());
+        eventEmitter.emit(result.event, result.args);
       });
 
     });
 
-    // register all plugins
-/*
     _.chain(plugins).values()
       .forEach(plugin => plugin({
         events: eventEmitter,
-        contracts_instances: payload,
+        contracts_instances: contract_instances,
         eventModels: eventModels,
-        contracts: contracts
+        contracts: contracts,
+        network: network
       }))
       .value();
-*/
 
   });
+
