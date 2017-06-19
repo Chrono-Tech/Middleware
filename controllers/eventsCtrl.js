@@ -1,4 +1,5 @@
 const _ = require('lodash'),
+  utils = require('web3/lib/utils/utils.js'),
   mongoose = require('mongoose');
 
 /**
@@ -8,7 +9,7 @@ const _ = require('lodash'),
  * @returns {{eventModels, initEmitter, contracts: (Function|*)}}
  */
 
-module.exports = (contracts) => {
+module.exports = (contracts, web3) => {
 
   let eventModels = _.chain(contracts)
     .map(value =>
@@ -33,8 +34,16 @@ module.exports = (contracts) => {
     }, {})
     .value();
 
-  return {
-    eventModels: eventModels
-  };
+  let signatures = _.chain(contracts)
+      .values()
+      .map(c => c.abi)
+      .flattenDeep()
+      .filter({type: 'event'})
+      .transform((result, ev) => {
+        result[web3.sha3(utils.transformToFullName(ev))] = ev;
+      }, {})
+      .value();
+
+  return {eventModels, signatures};
 
 };

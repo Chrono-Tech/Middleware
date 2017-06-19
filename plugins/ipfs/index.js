@@ -1,5 +1,6 @@
 const pinModel = require('./models/pinModel'),
   _ = require('lodash'),
+  Promise = require('bluebird'),
   scheduleService = require('./services/scheduleService'),
   bytes32toBase58 = require('./helpers/bytes32toBase58');
 
@@ -19,7 +20,7 @@ module.exports = (ctx) => {
   let chain = Promise.resolve();
 
   ctx.events.on('NewLOC', args => {
-    ctx.contract_instances.LOCManager.getLOCByName(args.locName)
+    ctx.contracts_instances.LOCManager.getLOCByName(args.locName)
       .then(data => {
         let pin = new pinModel({
           hash: bytes32toBase58(data[4]),

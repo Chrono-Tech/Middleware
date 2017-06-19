@@ -7,18 +7,11 @@ const Web3 = require('web3'),
   log = bunyan.createLogger({name: 'controllers.contractsCtrl'}),
   Promise = require('bluebird');
 
-const TIME_SYMBOL = 'TIME';
-const TIME_NAME = 'Time Token';
-
-const LHT_SYMBOL = 'LHT';
-const LHT_NAME = 'Labour-hour Token';
-
-const fakeArgs = [0, 0, 0, 0, 0, 0, 0, 0];
-
 module.exports = (provider_config) => {
 
   const instances = {},
     provider = new Web3.providers.HttpProvider(`http://${provider_config.host}:${provider_config.port}`),
+    web3 = new Web3(),
     contracts = require_all({
       dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
       filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
@@ -30,6 +23,8 @@ module.exports = (provider_config) => {
       }
     });
 
+  web3.setProvider(provider);
+
   return Promise.all(
     _.map(contracts, c =>
       c.deployed()
@@ -38,79 +33,8 @@ module.exports = (provider_config) => {
         }).catch(err => {})
     )
   )
-    .then(() => {
-      log.info('init manager...');
-      return Promise.each([
-          instances.ContractsManager.init.call.bind(this),
-          instances.UserManager.init.call.bind(this, contracts.ContractsManager.address),
-          instances.PendingManager.init.call.bind(this, contracts.ContractsManager.address),
-          instances.LOCManager.init.call.bind(this, contracts.ContractsManager.address)
-        ], (item) =>
-          item()
-            .catch(err => log.error(err))
-      );
-    })
-    .then(() => {
-      log.info('init platform...');
-      return Promise.each([
-        instances.ERC20Manager.init.call.bind(this, contracts.ContractsManager.address),
-        instances.ExchangeManager.init.call.bind(this, contracts.ContractsManager.address),
-        instances.Rewards.init.call.bind(this, contracts.ContractsManager.address, 0),
-        instances.Vote.init.call.bind(this, contracts.ContractsManager.address),
-        instances.TimeHolder.init.call.bind(this, contracts.ContractsManager.address, contracts.ChronoBankAssetProxy.address),
-        instances.ChronoBankAsset.init.call.bind(this, contracts.ChronoBankAssetProxy.address),
-        instances.ChronoBankAssetWithFee.init.call.bind(this, contracts.ChronoBankAssetWithFeeProxy.address),
-        instances.ChronoBankAssetProxy.init.call.bind(this, contracts.ChronoBankPlatform.address, TIME_SYMBOL, TIME_NAME),
-        instances.ChronoBankAssetWithFeeProxy.init.call.bind(this, contracts.ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME),
-        instances.TimeHolder.addListener.call.bind(this, instances.Rewards.address),
-        instances.TimeHolder.addListener.call.bind(this, instances.Vote.address),
-        instances.UserManager.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.UserManager.address),
-        instances.PendingManager.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.ChronoBankAsset.address),
-        instances.LOCManager.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.PendingManager.address),
-        instances.ERC20Manager.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.ERC20Manager.address),
-        instances.AssetsManager.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.AssetsManager.address),
-        instances.ExchangeManager.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.ExchangeManager.address),
-        instances.Rewards.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.Rewards.address),
-        instances.Vote.setupEventsHistory.call.bind(this, instances.MultiEventsHistory.address),
-        instances.MultiEventsHistory.authorize.call.bind(this, instances.Vote.address)
-      ], (item) =>
-        item()
-          .catch(err => log.error(err)));
-    })
     .then(() =>
-      Promise.each(
-        _.chain(instances.ChronoBankPlatformEmitter.abi)
-          .filter(event =>
-            event.type === 'event' &&
-            _.has(instances.ChronoBankPlatformEmitter.contract[event.name], 'getData')
-          )
-          .map(ev => {
-            return instances.EventsHistory.addEmitter.call.bind(this, instances.ChronoBankPlatformEmitter.contract[ev.name].getData.apply(this, fakeArgs).slice(0, 10),
-              instances.ChronoBankPlatformEmitter.address,
-              {gas: 3000000}
-            );
-          })
-          .union([
-            instances.ChronoBankPlatform.setupEventsHistory.call.bind(
-              this,
-              contracts.EventsHistory.address,
-              {gas: 3000000}),
-            instances.EventsHistory.addVersion.call.bind(this, instances.ChronoBankPlatform.address, 'Origin', 'Initial version.')
-          ])
-          .value(), (item) =>
-          item()
-            .catch(err => log.error(err))
-      )
-    )
-    .then(() =>
-      Promise.resolve({instances, contracts})
+      Promise.resolve({instances, contracts, web3: web3})
     )
     .catch(err => log.error(err));
 };

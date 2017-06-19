@@ -9,6 +9,7 @@ const mongoose = require('mongoose'),
   bunyan = require('bunyan'),
   log = bunyan.createLogger({name: 'app'}),
   Promise = require('bluebird'),
+  utilsSolcCoder = require('web3/lib/solidity/coder.js'),
   cluster = require('cluster');
 
 /**
@@ -55,36 +56,36 @@ Promise.all([
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     block = _.chain(block).get('block', 0).add(0).value();
-    let eventModels = eventsCtrl(contract_instances).eventModels;
+    let event_ctx = eventsCtrl(contract_instances, contracts_ctx.web3);
+    let eventModels = event_ctx.eventModels;
+    let eventSignatures = event_ctx.signatures;
     let eventEmitter = new emitter();
-
-    let multi_addr = contract_instances.MultiEventsHistory.address;
-    let history_addr = contract_instances.EventsHistory.address;
 
     log.info(`search from block:${block} for network:${network}`);
     let chain = Promise.resolve();
 
-    _.forEach(contracts, (instance, name) => {
+    [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address].forEach(addr => {
 
-      let events = name === 'ChronoBankPlatformEmitter' ?
-        instance.at(history_addr).allEvents({fromBlock: block, toBlock: 'latest'}) :
-        instance.at(multi_addr).allEvents({fromBlock: block, toBlock: 'latest'});
-
-      events.watch((error, result) => {
-
-        //console.log(error || result);
-        if (!_.has(result, 'event') || !eventModels[result.event] || result.blockNumber <= block) {
+      contracts_ctx.web3.eth.filter({fromBlock: block, toBlock: 'latest', address: addr}, (err, result) => {
+        if (!eventSignatures[result.topics[0]] || result.blockNumber <= block) {
           return;
         }
 
-        let new_event = new eventModels[result.event](_.merge(result.args, {network: network}));
-        chain = chain.delay(1000).then(() => new_event.save());
+        let signature_definition = eventSignatures[result.topics[0]];
+        let args = _.chain(result.topics.slice(1))
+          .transform((result, arg, i) => {
+            result[signature_definition.inputs[i].name] = utilsSolcCoder.decodeParam(signature_definition.inputs[i].type, arg);
+          }, {})
+          .value();
+
+        let new_event = new eventModels[signature_definition.name](_.merge(args, {network: network}));
+        chain = chain.delay(100).then(() => new_event.save());
 
         let new_block = new blockModel({block: result.blockNumber, network: network});
-        chain = chain.delay(1000).then(() => new_block.save());
-        eventEmitter.emit(result.event, result.args);
-      });
+        chain = chain.delay(100).then(() => new_block.save());
+        eventEmitter.emit(signature_definition.name, args);
 
+      });
     });
 
     _.chain(plugins).values()
