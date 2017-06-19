@@ -74,6 +74,11 @@ Promise.all([
         let signature_definition = eventSignatures[result.topics[0]];
         let args = _.chain(result.topics.slice(1))
           .transform((result, arg, i) => {
+
+            if(signature_definition.inputs[i].type.match(/^bytes([0-9]{1,})(\[([0-9]*)\])*$/) && arg.indexOf('0x') === 0){
+              arg = arg.slice(2);
+            }
+
             result[signature_definition.inputs[i].name] = utilsSolcCoder.decodeParam(signature_definition.inputs[i].type, arg);
           }, {})
           .value();

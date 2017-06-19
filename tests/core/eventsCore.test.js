@@ -7,7 +7,6 @@ const config = require('../../config'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
   contractsCtrl = require('../../controllers').contractsCtrl,
-  chronoBankPlatformEmitter_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatformEmitter"),
   chronoBankPlatform_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatform"),
   chronomint_definition = require("../../SmartContracts/build/contracts/LOCManager"),
   mongoose = require('mongoose'),
@@ -21,10 +20,9 @@ beforeAll(() => {
   let provider = new Web3.providers.HttpProvider(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`);
   web3.setProvider(provider);
   let chronoBankPlatform = contract(chronoBankPlatform_definition);
-  let chronoBankPlatformEmitter = contract(chronoBankPlatformEmitter_definition);
   let chronoMint = contract(chronomint_definition);
 
-  [chronoBankPlatform, chronoBankPlatformEmitter, chronoMint]
+  [chronoBankPlatform, chronoMint]
     .forEach(c => {
       c.defaults({from: web3.eth.coinbase, gas: 3000000});
       c.setProvider(provider);
@@ -34,13 +32,10 @@ beforeAll(() => {
     .then((data) => {
       _.merge(contracts_instances, data.instances);
       _.merge(contracts, data.contracts);
-      return Promise.all([
-        chronoBankPlatformEmitter.at(contracts_instances.EventsHistory.address),
-        chronoMint.at(contracts_instances.MultiEventsHistory.address)
-      ])
+      return chronoMint.at(contracts_instances.MultiEventsHistory.address)
     })
-    .then((data) => {
-      contracts.mint = _.last(data);
+    .then((mint) => {
+      contracts.mint = mint;
       return mongoose.connect(config.mongo.uri);
     })
 });
@@ -73,18 +68,18 @@ test('add new loc', () => {
         expDate: Math.round(+new Date() / 1000),
         currency: helpers.bytes32('LHT')
       };
-
+      
       return contracts_instances.LOCManager.addLOC(
         factory.Loc.name,
         factory.Loc.website,
         factory.Loc.issueLimit,
         factory.Loc.hash,
         factory.Loc.expDate,
-        factory.Loc.currency
+        factory.Loc.currency,
+        {from: web3.eth.coinbase}
       )
     })
     .then(result => {
-      console.log(result);
       expect(result).toBeDefined();
       expect(result.tx).toBeDefined();
       return Promise.resolve();
@@ -147,7 +142,8 @@ test('update loc', () => {
         factory.Loc.website,
         factory.Loc.issueLimit,
         factory.Loc.hash,
-        factory.Loc.expDate
+        factory.Loc.expDate,
+        {from: web3.eth.coinbase}
       )
     })
     .then(result => {
