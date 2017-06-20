@@ -7,11 +7,19 @@ node_js: 6.10.3
 
 services: mongodb
 
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install wget -y
+  - wget https://dist.ipfs.io/go-ipfs/v0.4.9/go-ipfs_v0.4.9_linux-amd64.tar.gz -O ipfs.tar.gz
+  - tar xvfz ipfs.tar.gz
+  - (cd go-ipfs && sh install.sh)
+  - ipfs init
 
 install:
   - npm install
 
 before_script:
+    - ipfs daemon > /dev/null &
     - npm run testrpc > /dev/null &
     - sleep 5 && npm run prepare_linux_install
     - sleep 5 && node . > /dev/null &
