@@ -12,7 +12,7 @@ before_install:
   - sudo apt-get install wget -y
   - wget https://dist.ipfs.io/go-ipfs/v0.4.9/go-ipfs_v0.4.9_linux-amd64.tar.gz -O ipfs.tar.gz
   - tar xvfz ipfs.tar.gz
-  - mv go-ipfs/ipfs /usr/local/bin/ipfs
+  - sudo mv go-ipfs/ipfs /usr/local/bin/ipfs
   - ipfs init
 
 install:
