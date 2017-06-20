@@ -91,6 +91,7 @@ curl http://localhost:8080/events/issue?issueNumber<20
 
 For more information about queries, please refer to [query-to-mongo-and-back](https://github.com/ega-forever/query-to-mongo-and-back).
 
+
 ### Testing
 Right now, only integration tests are provided. Thus should check:
 1) the ability of "event daemon" catching and saving events in right collections
@@ -109,6 +110,7 @@ In order, to run your own plugin, create a directory under plugins (which should
 3) eventModels - mongo models
 4) contracts - not initialized contracts
 5) network - which is a network's name
+
 All plugins are loaded to system by default, so no need in extra declaration.
 
 
