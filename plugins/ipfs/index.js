@@ -1,5 +1,4 @@
 const pinModel = require('./models/pinModel'),
-  _ = require('lodash'),
   Promise = require('bluebird'),
   scheduleService = require('./services/scheduleService'),
   bytes32toBase58 = require('./helpers/bytes32toBase58');
@@ -9,16 +8,20 @@ const pinModel = require('./models/pinModel'),
  * @description listen for changes on smartContract's Loc hash,
  * update them in db in 'pins' collections, and runs a 'ping to ipfs' task
  * by scheduler
- * @param ctx - context of app, includes {events: *,
+ * @param ctx - context of app, includes {
+ *    events: *,
  *    contracts_instances: *,
  *    eventModels: *,
- *    contracts: *}
+ *    contracts: *
+ *    network: *
+ *    }
  */
 
 module.exports = (ctx) => {
 
   let chain = Promise.resolve();
 
+  //listen to newLoc event, and on emit - create a pin object for ipfs, by extracting hash from Loc
   ctx.events.on('NewLOC', args => {
     ctx.contracts_instances.LOCManager.getLOCByName(args.locName)
       .then(data => {
@@ -31,6 +34,7 @@ module.exports = (ctx) => {
       });
   });
 
+  //listen to HashUpdate event, and on emit - update a pin object for ipfs, by extracting hash from Loc
   ctx.events.on('HashUpdate', args => {
     chain = chain.delay(1000).then(() =>
       pinModel.update(
@@ -40,6 +44,7 @@ module.exports = (ctx) => {
     );
   });
 
+  //initialize a scheduled ping service, which will perform pinning job on ipfs by hashes from pin collection
   scheduleService();
 
 };

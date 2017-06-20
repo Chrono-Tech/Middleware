@@ -3,23 +3,26 @@ const _ = require('lodash'),
   mongoose = require('mongoose');
 
 /**
- * @module contracts Controller
+ * @module events Controller
  * @description initialize all events for smartContracts,
+ * @param contracts - instances of smartContracts
+ * @param web3 - initialized web3 instance
  * and prepare collections in mongo for them
- * @returns {{eventModels, initEmitter, contracts: (Function|*)}}
+ * @returns {{eventModels, signatures}}
  */
 
 module.exports = (contracts, web3) => {
 
+
   let eventModels = _.chain(contracts)
-    .map(value =>
+    .map(value => //fetch all events
       _.chain(value).get('abi')
         .filter({type: 'event'})
         .value()
     )
     .flatten()
-    .uniqBy('name')
-    .transform((result, ev) => {
+    .uniqBy('name') //remove duplicates
+    .transform((result, ev) => { //build mongo model, based on event definition from abi
       result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
         _.chain(ev.inputs).transform((result, obj) => {
           result[obj.name] = {
@@ -34,7 +37,7 @@ module.exports = (contracts, web3) => {
     }, {})
     .value();
 
-  let signatures = _.chain(contracts)
+  let signatures = _.chain(contracts) //transform event definition to the following object {encoded_event_signature: event_definition}
       .values()
       .map(c => c.abi)
       .flattenDeep()

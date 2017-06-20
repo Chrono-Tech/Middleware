@@ -1,14 +1,11 @@
 const config = require('../../config'),
   Web3 = require('web3'),
   web3 = new Web3(),
-  contract = require("truffle-contract"),
   _ = require('lodash'),
   ipfsAPI = require('ipfs-api'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
   contractsCtrl = require('../../controllers').contractsCtrl,
-  chronoBankPlatform_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatform"),
-  chronomint_definition = require("../../SmartContracts/build/contracts/LOCManager"),
   mongoose = require('mongoose'),
   contracts = {},
   contracts_instances = {},
@@ -19,23 +16,11 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
 beforeAll(() => {
   let provider = new Web3.providers.HttpProvider(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`);
   web3.setProvider(provider);
-  let chronoBankPlatform = contract(chronoBankPlatform_definition);
-  let chronoMint = contract(chronomint_definition);
-
-  [chronoBankPlatform, chronoMint]
-    .forEach(c => {
-      c.defaults({from: web3.eth.coinbase, gas: 3000000});
-      c.setProvider(provider);
-    });
 
   return contractsCtrl(config.web3.networks.development)
     .then((data) => {
       _.merge(contracts_instances, data.instances);
       _.merge(contracts, data.contracts);
-      return chronoMint.at(contracts_instances.MultiEventsHistory.address)
-    })
-    .then((mint) => {
-      contracts.mint = mint;
       return mongoose.connect(config.mongo.uri);
     })
 });
@@ -68,7 +53,7 @@ test('add new loc', () => {
         expDate: Math.round(+new Date() / 1000),
         currency: helpers.bytes32('LHT')
       };
-      
+
       return contracts_instances.LOCManager.addLOC(
         factory.Loc.name,
         factory.Loc.website,

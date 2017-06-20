@@ -1,5 +1,24 @@
 const truffle_config = require('../truffle-config');
 
+/**
+ * @factory config
+ * @description base app's configuration
+ * @returns {{
+ *  nodes: [*],
+ *  web3: *,
+ *  schedule: {
+ *      job: string,
+ *      check_time: number
+ *      },
+ *  mongo: {
+ *    uri: string
+ *    },
+ *  rest: {
+ *    port: number
+ *    }
+ *    }}
+ */
+
 module.exports = {
   nodes: [
     {'host': 'localhost', 'port': '32771', 'protocol': 'http'}
@@ -11,5 +30,8 @@ module.exports = {
   },
   mongo: {
     uri: 'mongodb://localhost:32772/data'
+  },
+  rest: {
+    port: 8080
   }
 };
