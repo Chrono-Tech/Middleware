@@ -114,4 +114,3 @@ Promise.all([
       .value();
 
   });
-
