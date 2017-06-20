@@ -3,18 +3,23 @@ const express = require('express'),
   app = express(),
   collectionRouter = express.Router(),
   bunyan = require('bunyan'),
+  config = require('../../config'),
   log = bunyan.createLogger({name: 'plugins.rest'}),
   q2mb = require('query-to-mongo-and-back');
 
 /**
  * @module rest
  * @description expose event collections via rest api
- * @param events events from all smartContracts
- * @param contracts instances of smartContracts
- * @param models instances of mongoose models
+ * @param ctx - context of app, includes {
+ *    events: *,
+ *    contracts_instances: *,
+ *    eventModels: *,
+ *    contracts: *
+ *    network: *
+ *    }
  */
 
-module.exports = (events, contracts, models) => {
+module.exports = (ctx) => {
 
   app.get('/', (req, res) => {
     res.send({
@@ -22,13 +27,17 @@ module.exports = (events, contracts, models) => {
     });
   });
 
+  //return all available collections to user
   collectionRouter.get('/', (req, res) => {
-    res.send(Object.keys(models));
+    res.send(Object.keys(ctx.eventModels));
   });
 
-  _.forEach(models, (model, name) => {
+  //register each event in express by its name
+  _.forEach(ctx.eventModels, (model, name) => {
     collectionRouter.get(`/${name}`, (req, res) => {
+      //convert query request to mongo's
       let q = q2mb.fromQuery(req.query);
+      //retrieve all records, which satisfy the query
       model.find(q.criteria, q.options.fields)
         .sort(q.options.sort)
         .limit(q.options.limit)
@@ -42,8 +51,9 @@ module.exports = (events, contracts, models) => {
     });
   });
 
+  //register all events under namespace 'events'
   app.use('/events', collectionRouter);
 
-  app.listen(8080);
+  app.listen(config.rest.port || 8080);
 
 };

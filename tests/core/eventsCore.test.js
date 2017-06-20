@@ -1,16 +1,11 @@
-const config = require('../../config.json'),
+const config = require('../../config'),
   Web3 = require('web3'),
   web3 = new Web3(),
-  contract = require("truffle-contract"),
   _ = require('lodash'),
   ipfsAPI = require('ipfs-api'),
   Promise = require('bluebird'),
-  provider = new Web3.providers.HttpProvider(config.web3.url),
   helpers = require('../helpers'),
   contractsCtrl = require('../../controllers').contractsCtrl,
-  chronoBankPlatformEmitter_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatformEmitter"),
-  chronoBankPlatform_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatform"),
-  chronomint_definition = require("../../SmartContracts/build/contracts/LOCManager"),
   mongoose = require('mongoose'),
   contracts = {},
   contracts_instances = {},
@@ -19,28 +14,13 @@ const config = require('../../config.json'),
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
 
 beforeAll(() => {
+  let provider = new Web3.providers.HttpProvider(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`);
   web3.setProvider(provider);
-  let chronoBankPlatform = contract(chronoBankPlatform_definition);
-  let chronoBankPlatformEmitter = contract(chronoBankPlatformEmitter_definition);
-  let chronoMint = contract(chronomint_definition);
 
-  [chronoBankPlatform, chronoBankPlatformEmitter, chronoMint]
-    .forEach(c => {
-      c.defaults({from: web3.eth.coinbase, gas: 3000000});
-      c.setProvider(provider);
-    });
-
-  return contractsCtrl()
+  return contractsCtrl(config.web3.networks.development)
     .then((data) => {
       _.merge(contracts_instances, data.instances);
       _.merge(contracts, data.contracts);
-      return Promise.all([
-        chronoBankPlatformEmitter.at(contracts_instances.EventsHistory.address),
-        chronoMint.at(contracts_instances.MultiEventsHistory.address)
-      ])
-    })
-    .then((data) => {
-      contracts.mint = _.last(data);
       return mongoose.connect(config.mongo.uri);
     })
 });
@@ -72,15 +52,16 @@ test('add new loc', () => {
         hash: helpers.bytes32fromBase58(data[0].toJSON().multihash),
         expDate: Math.round(+new Date() / 1000),
         currency: helpers.bytes32('LHT')
-
       };
+
       return contracts_instances.LOCManager.addLOC(
         factory.Loc.name,
         factory.Loc.website,
         factory.Loc.issueLimit,
         factory.Loc.hash,
         factory.Loc.expDate,
-        factory.Loc.currency
+        factory.Loc.currency,
+        {from: web3.eth.coinbase}
       )
     })
     .then(result => {
@@ -146,7 +127,8 @@ test('update loc', () => {
         factory.Loc.website,
         factory.Loc.issueLimit,
         factory.Loc.hash,
-        factory.Loc.expDate
+        factory.Loc.expDate,
+        {from: web3.eth.coinbase}
       )
     })
     .then(result => {
@@ -156,18 +138,16 @@ test('update loc', () => {
     })
 });
 
-
 test('fetch changes for loc via HashUpdate event', () =>
   new Promise(res => {
     contracts.LOCManager.at(contracts_instances.MultiEventsHistory.address)
-    .allEvents({fromBlock: 0}).watch((err, result) => {
+      .allEvents({fromBlock: 0}).watch((err, result) => {
       if (result && result.event === 'HashUpdate' && result.args.newHash === factory.Loc.hash) {
         res();
       }
     });
   })
 );
-
 
 test('validate new hash in mongo', () =>
   Promise.delay(2000)
