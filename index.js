@@ -1,6 +1,7 @@
 const mongoose = require('mongoose'),
   config = require('./config'),
   blockModel = require('./models').blockModel,
+  transactionModel = require('./models').transactionModel,
   contractsCtrl = require('./controllers').contractsCtrl,
   eventsCtrl = require('./controllers').eventsCtrl,
   aggregateTxsByBlockService = require('./services/aggregateTxsByBlockService'),
@@ -10,7 +11,7 @@ const mongoose = require('mongoose'),
   bunyan = require('bunyan'),
   log = bunyan.createLogger({name: 'app'}),
   Promise = require('bluebird'),
-  solidityEvent = require('web3/lib/web3/event.js'),
+  listenTxsFromBlockIPCService = require('./services/listenTxsFromBlockIPCService'),
   cluster = require('cluster');
 
 /**
@@ -34,12 +35,11 @@ if (cluster.isMaster) {
     log.error(`worker with pid:${worker.id} is dead`);
 
     let network = workers[worker.id];
-    let new_id = _.chain(workers).keys().size().add(1).value();
+    let new_id = _.chain(workers).keys().max().toNumber().add(1).value();
     workers[new_id] = network;
     delete workers[worker.id];
 
     cluster.fork({network: network});
-
   });
 
   return;
@@ -61,101 +61,61 @@ Promise.all([
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
+    let latestBlock = 0;
     let event_ctx = eventsCtrl(contract_instances, contracts_ctx.web3);
     let eventModels = event_ctx.eventModels;
     let eventEmitter = new emitter();
 
     log.info(`search from block:${currentBlock} for network:${network}`);
-    let chain = Promise.resolve();
-    let step = 50;
+    let txService = listenTxsFromBlockIPCService();
 
-    let check = () => {
-      console.log('inside with block: ', currentBlock);
-      return new Promise(res =>
-        contracts_ctx.web3.eth.getBlockNumber((err, result) => res(result))
-      )
-        .then(maxBlock =>
-          currentBlock === maxBlock ? Promise.resolve([]) :
-            Promise.map(new Array(maxBlock < currentBlock + step ? maxBlock - currentBlock : currentBlock + step), () =>
-              aggregateTxsByBlockService(contracts_ctx, contracts_ctx.web3.eth.accounts, contracts_ctx.web3, ++currentBlock)
-            )
-        )
-        .then(data => {
+    let accounts = contracts_ctx.web3.eth.accounts;
+    txService.events.on('connected', () => {
 
-          if(_.isEmpty(data)){
-            chain = chain.delay(2000).then(() => check());
-            return;
-          }
+      txService.events.emit('getBlock');
+      txService.events.on('block', block => {
+        latestBlock = block;
+        txService.events.emit('getTx', ++currentBlock);
+      });
 
-           _.chain(data)
-            .map(d=>d.events)
-            .flattenDeep()
-            .forEach(ev=>{
-              console.log(ev);
-              if(!eventModels[ev.event]){
-                return;
-              }
-
-              console.log(ev)
-
-              let new_event = new eventModels[ev.event](_.merge(ev.args, {network: network}));
-              chain = chain.delay(100).then(() => new_event.save());
-              eventEmitter.emit(ev.event, ev.args);
-            })
-            .value();
-
-           //todo record table with tx
-
-          //add new block to mongo
-          let new_block = new blockModel({block: currentBlock, network: network});
-          chain = chain.delay(100).then(() => new_block.save());
-
-
-          console.log('chunk length:', data.length);
-          //console.log(_.filter(data, item => item.events.length > 0 || item.txs.length > 0));
-          chain = chain.delay(2000).then(() => check());
-        });
-    };
-    chain = chain.then(() => check());
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-    //chrono has 2 main addresses, from which we receive events, and for each of them we will setup web3.eth.filter
-    [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address].forEach(addr => {
-
-      contracts_ctx.web3.eth.filter({fromBlock: block, toBlock: 'latest', address: addr}, (err, result) => {
-        //validate that exists, by fetching the first topic and comparing it with our events signatures
-        if (!eventSignatures[result.topics[0]] || result.blockNumber <= block) {
-          return;
+      txService.events.on('tx', (tx) => {
+        if (!tx) {
+          return currentBlock >= latestBlock ?
+            setTimeout(() => {
+              txService.events.emit('getTx', currentBlock);
+            }, 60000) : txService.events.emit('getTx', ++currentBlock);
         }
 
-        let signature_definition = eventSignatures[result.topics[0]];
-        let result_decoded = new solidityEvent(null, signature_definition).decode(result);
 
-        //add new event to mongo
-        let new_event = new eventModels[result_decoded.event](_.merge(result_decoded.args, {network: network}));
-        chain = chain.delay(100).then(() => new_event.save());
 
-        //add new block to mongo
-        let new_block = new blockModel({block: result.blockNumber, network: network});
-        chain = chain.delay(100).then(() => new_block.save());
-        eventEmitter.emit(signature_definition.name, result_decoded.args);
+        let res = aggregateTxsByBlockService(tx,
+          [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
+          event_ctx.signatures,
+          accounts
+        );
 
+
+/*        if(res.txs.length)
+        console.log(res)*/
+
+        Promise.all(
+          _.chain(res.events)
+            .map(ev => new eventModels[ev.event](_.merge(ev.args, {network: network})).save())
+            .union([
+              transactionModel.insertMany(res.txs),
+              blockModel.findOneAndUpdate({network: network}, {
+                block: currentBlock,
+                created: Date.now()
+              }, {upsert: true})
+            ])
+            .value()
+        )
+          .then(() => { //todo optimise
+            txService.events.emit('getTx', ++currentBlock);
+          });
       });
+
     });
-*/
 
     //register plugins
     _.chain(plugins).values()
