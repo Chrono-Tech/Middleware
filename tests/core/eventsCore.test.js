@@ -89,7 +89,7 @@ test('fetch changes for loc via getLoc', () =>
 );
 
 test('validate hash in mongo', () =>
-  Promise.delay(2000)
+  Promise.delay(20000)
     .then(() =>
       mongoose.model('NewLOC', new mongoose.Schema({
           locName: {type: mongoose.Schema.Types.Mixed}
@@ -150,7 +150,7 @@ test('fetch changes for loc via HashUpdate event', () =>
 );
 
 test('validate new hash in mongo', () =>
-  Promise.delay(2000)
+  Promise.delay(20000)
     .then(() =>
       mongoose.model('hashupdates', new mongoose.Schema({
           oldHash: {type: mongoose.Schema.Types.Mixed},

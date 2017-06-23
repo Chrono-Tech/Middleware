@@ -75,28 +75,22 @@ Promise.all([
       txService.events.emit('getBlock');
       txService.events.on('block', block => {
         latestBlock = block;
-        txService.events.emit('getTx', ++currentBlock);
+        txService.events.emit('getTxs', ++currentBlock);
       });
 
-      txService.events.on('tx', (tx) => {
-        if (!tx) {
+      txService.events.on('txs', (txs) => {
+        if (!txs || _.isEmpty(txs)) {
           return currentBlock >= latestBlock ?
             setTimeout(() => {
-              txService.events.emit('getTx', currentBlock);
-            }, 60000) : txService.events.emit('getTx', ++currentBlock);
+              txService.events.emit('getTxs', currentBlock);
+            }, 5000) : txService.events.emit('getTxs', ++currentBlock);
         }
 
-
-
-        let res = aggregateTxsByBlockService(tx,
+        let res = aggregateTxsByBlockService(txs,
           [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
           event_ctx.signatures,
           accounts
         );
-
-
-/*        if(res.txs.length)
-        console.log(res)*/
 
         Promise.all(
           _.chain(res.events)
@@ -110,8 +104,13 @@ Promise.all([
             ])
             .value()
         )
+          .timeout(1000)
           .then(() => { //todo optimise
-            txService.events.emit('getTx', ++currentBlock);
+            txService.events.emit('getTxs', ++currentBlock);
+          })
+          .catch(err => {
+            txService.events.emit('getTxs', currentBlock);
+            log.debug(err);
           });
       });
 
@@ -129,4 +128,3 @@ Promise.all([
       .value();
 
   });
-

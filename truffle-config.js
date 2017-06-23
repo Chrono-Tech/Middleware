@@ -4,7 +4,8 @@ module.exports = {
       host: 'localhost',
       port: 8545,
       network_id: '*', // Match any network id
-      gas: 4700000
+      gas: 4700000,
+      ipc: '\\\\.\\pipe\\geth.ipc'
     }
   },
   migrations_directory: './migrations'
