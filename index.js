@@ -106,6 +106,10 @@ Promise.all([
         )
           .timeout(1000)
           .then(() => { //todo optimise
+            _.forEach(res.events, ev =>
+              eventEmitter.emit(ev.event, ev.args)
+            );
+
             txService.events.emit('getTxs', ++currentBlock);
           })
           .catch(err => {
