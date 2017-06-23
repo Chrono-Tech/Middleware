@@ -21,7 +21,7 @@ const truffle_config = require('../truffle-config');
 
 module.exports = {
   nodes: [
-    {'host': 'localhost', 'port': '32771', 'protocol': 'http'}
+    {'host': 'localhost', 'port': '5001', 'protocol': 'http'}
   ],
   web3: truffle_config,
   schedule: {
@@ -29,7 +29,7 @@ module.exports = {
     check_time: 0
   },
   mongo: {
-    uri: 'mongodb://localhost:32772/data'
+    uri: 'mongodb://localhost:27017/data'
   },
   rest: {
     port: 8081
