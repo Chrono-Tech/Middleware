@@ -1,6 +1,4 @@
 const config = require('../../config'),
-  Web3 = require('web3'),
-  web3 = new Web3(),
   _ = require('lodash'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
@@ -10,22 +8,23 @@ const config = require('../../config'),
   mongoose = require('mongoose'),
   request = require('request'),
   moment = require('moment'),
-  contracts = {},
-  events = {},
-  factory = {},
-  contracts_instances = {};
+  ctx = {
+    events: {},
+    contracts_instances: {},
+    factory: {},
+    contracts: {},
+    web3: null
+  };
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
 
 beforeAll(() => {
-  let provider = new Web3.providers.HttpProvider(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`);
-  web3.setProvider(provider);
-
   return contractsCtrl(config.web3.networks.development)
     .then((data) => {
-      _.merge(contracts_instances, data.instances);
-      _.merge(contracts, data.contracts);
-      _.merge(events, eventsCtrl(data.instances, data.web3));
+      ctx.contracts_instances = data.instances;
+      ctx.contracts = data.contracts;
+      ctx.events = eventsCtrl(data.instances, data.web3);
+      ctx.web3 = data.web3;
       return mongoose.connect(config.mongo.uri);
     })
 });
@@ -36,7 +35,7 @@ afterAll(() =>
 
 test('validate all routes', () =>
   Promise.all(
-    _.map(events.eventModels, (model, name) =>
+    _.map(ctx.events.eventModels, (model, name) =>
       new Promise((res, rej) =>
         request(`http://localhost:${config.rest.port}/events/${name}`, (err, resp) => {
           err || resp.statusCode !== 200 ? rej(err) : res()
@@ -62,7 +61,7 @@ test('add new loc', () => {
       .value()
   )
     .then((data) => {
-      factory.Loc = {
+      ctx.factory.Loc = {
         name: helpers.bytes32(helpers.generateRandomString()),
         website: helpers.bytes32("www.ru"),
         issueLimit: 1000000,
@@ -72,82 +71,59 @@ test('add new loc', () => {
         created: new Date()
       };
 
-      return contracts_instances.LOCManager.addLOC(
-        factory.Loc.name,
-        factory.Loc.website,
-        factory.Loc.issueLimit,
-        factory.Loc.hash,
-        factory.Loc.expDate,
-        factory.Loc.currency,
-        {from: web3.eth.coinbase}
-      )
+      return new Promise(res =>
+        ctx.web3.eth.getCoinbase((err, result) => res(result))
+      );
     })
+    .then(coinbase =>
+      ctx.contracts_instances.LOCManager.addLOC(
+        ctx.factory.Loc.name,
+        ctx.factory.Loc.website,
+        ctx.factory.Loc.issueLimit,
+        ctx.factory.Loc.hash,
+        ctx.factory.Loc.expDate,
+        ctx.factory.Loc.currency,
+        {from: coinbase}
+      )
+    )
     .then(result => {
       expect(result).toBeDefined();
       expect(result.tx).toBeDefined();
       expect(result.logs[0].args.locName).toBeDefined();
-      factory.Loc.encoded_name = result.logs[0].args.locName;
+      ctx.factory.Loc.encoded_name = result.logs[0].args.locName;
       return Promise.resolve();
     })
 });
 
-test('fetch changes for loc via getLoc', () =>
-  Promise.delay(2000)
-    .then(() =>
-      new Promise(res => {
-        contracts.LOCManager.at(contracts_instances.MultiEventsHistory.address)
-          .allEvents({fromBlock: 0}).watch((err, result) => {
-          if (result && result.event === 'NewLOC') {
-            expect(result.args.locName).toBeDefined();
-            contracts_instances.LOCManager.getLOCByName(result.args.locName)
-              .then(data => {
-                if (data[4] !== factory.Loc.hash) {
-                  return;
-                }
-                new Promise((res, rej) =>
-                  request(`http://localhost:${config.rest.port}/events/NewLOC`, (err, resp, body) => {
-                    err || resp.statusCode !== 200 ? rej(err) : res(JSON.parse(body))
-                  })
-                )
-                  .then(response => {
-                    let item = _.find(response, {locName: data[0]});
-                    expect(item).toBeDefined();
-                    res();
-                  })
-              })
-          }
-        });
-      })
-    )
-);
-
 test('validate query language', () =>
-  Promise.all(
-    [
-      `locName=${factory.Loc.encoded_name}`,
-      `locName!=${factory.Loc.encoded_name}`,
-      `network=development`,
-      `created<${moment(factory.Loc.created).add(-5,  'minutes').format()}`
-    ].map((query) =>
-      new Promise((res, rej) =>
-        request(`http://localhost:${config.rest.port}/events/NewLOC?${query}`, (err, resp, body) => {
-          err || resp.statusCode !== 200 ? rej(err) : res(JSON.parse(body))
-        })
+  Promise.delay(10000)
+    .then(() =>
+      Promise.all(
+        [
+          `locName=${ctx.factory.Loc.encoded_name}`,
+          `locName!=${ctx.factory.Loc.encoded_name}`,
+          `network=development`,
+          `created<${moment(ctx.factory.Loc.created).add(-5, 'minutes').toISOString()}`
+        ].map((query) =>
+          new Promise((res, rej) =>
+            request(`http://localhost:${config.rest.port}/events/NewLOC?${query}`, (err, resp, body) => {
+              err || resp.statusCode !== 200 ? rej(err) : res(JSON.parse(body))
+            })
+          )
+        )
       )
     )
-  )
+
     .spread((locName, noLocName, network, created) => {
 
-      let noItem = _.find(noLocName, {locName: factory.Loc.encoded_name});
-      let networkItem = _.find(network, {locName: factory.Loc.encoded_name});
-      let createdItem = _.find(created, {locName: factory.Loc.encoded_name});
+      let noItem = _.find(noLocName, {locName: ctx.factory.Loc.encoded_name});
+      let networkItem = _.find(network, {locName: ctx.factory.Loc.encoded_name});
+      let createdItem = _.find(created, {locName: ctx.factory.Loc.encoded_name});
 
-
-      expect(locName[0].locName).toEqual(factory.Loc.encoded_name);
+      expect(locName[0].locName).toEqual(ctx.factory.Loc.encoded_name);
       expect(noItem).toBeUndefined();
       expect(networkItem).toBeDefined();
       expect(createdItem).toBeUndefined();
-
 
     })
 )

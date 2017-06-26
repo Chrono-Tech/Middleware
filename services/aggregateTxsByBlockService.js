@@ -13,6 +13,8 @@ module.exports = (txs, event_addresses, eventSignatures, users) => {
           if (!signature_definition)
             return;
 
+          _.pullAt(ev, 0)
+
           let result_decoded = new solidityEvent(null, signature_definition).decode(ev);
           result.events.push(_.pick(result_decoded, ['event', 'args']));
         })

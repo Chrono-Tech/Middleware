@@ -21,25 +21,13 @@ module.exports = (ctx) => {
 
   let chain = Promise.resolve();
 
-  //listen to newLoc event, and on emit - create a pin object for ipfs, by extracting hash from Loc
-  ctx.events.on('NewLOC', args => {
-    ctx.contracts_instances.LOCManager.getLOCByName(args.locName)
-      .then(data => {
-        let pin = new pinModel({
-          hash: bytes32toBase58(data[4]),
-          network: ctx.network
-        });
-
-        chain = chain.delay(1000).then(() => pin.save());
-      });
-  });
-
   //listen to HashUpdate event, and on emit - update a pin object for ipfs, by extracting hash from Loc
-  ctx.events.on('HashUpdate', args => {
+  ctx.events.on('SetHash', args => {
     chain = chain.delay(1000).then(() =>
       pinModel.update(
-        {hash: args.oldHash, network: ctx.network},
-        {updated: Date.now(), hash: args.newHash}
+        {hash: bytes32toBase58(args.oldHash), network: ctx.network},
+        {updated: Date.now(), hash: bytes32toBase58(args.newHash), network: ctx.network},
+        {upsert: true, setDefaultsOnInsert: true}
       )
     );
   });

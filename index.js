@@ -1,6 +1,7 @@
 const mongoose = require('mongoose'),
   config = require('./config'),
   blockModel = require('./models').blockModel,
+  accountModel = require('./models').accountModel,
   transactionModel = require('./models').transactionModel,
   contractsCtrl = require('./controllers').contractsCtrl,
   eventsCtrl = require('./controllers').eventsCtrl,
@@ -53,15 +54,15 @@ let network = process.env.network;
 //init contracts on the following network and fetch the latest block for this network from mongo
 Promise.all([
   contractsCtrl(config.web3.networks[network]),
-  blockModel.findOne({network: network}).sort('-block')
-
+  blockModel.findOne({network: network}).sort('-block'),
+  accountModel.find({network: network})
 ])
-  .spread((contracts_ctx, currentBlock) => {
+  .spread((contracts_ctx, currentBlock, accounts) => {
 
+    accounts = _.map(accounts, a=>a.address);
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
-    let latestBlock = 0;
     let event_ctx = eventsCtrl(contract_instances, contracts_ctx.web3);
     let eventModels = event_ctx.eventModels;
     let eventEmitter = new emitter();
@@ -69,21 +70,20 @@ Promise.all([
     log.info(`search from block:${currentBlock} for network:${network}`);
     let txService = listenTxsFromBlockIPCService();
 
-    let accounts = contracts_ctx.web3.eth.accounts;
     txService.events.on('connected', () => {
 
-      txService.events.emit('getBlock');
+      txService.events.emit('getBlock'); //todo handle update through block
       txService.events.on('block', block => {
-        latestBlock = block;
-        txService.events.emit('getTxs', ++currentBlock);
+        block >= currentBlock ?
+          txService.events.emit('getTxs', currentBlock++) :
+          setTimeout(() => {
+            txService.events.emit('getBlock');
+          }, 10000);
       });
 
       txService.events.on('txs', (txs) => {
         if (!txs || _.isEmpty(txs)) {
-          return currentBlock >= latestBlock ?
-            setTimeout(() => {
-              txService.events.emit('getTxs', currentBlock);
-            }, 5000) : txService.events.emit('getTxs', ++currentBlock);
+          return txService.events.emit('getBlock');
         }
 
         let res = aggregateTxsByBlockService(txs,
@@ -94,7 +94,11 @@ Promise.all([
 
         Promise.all(
           _.chain(res.events)
-            .map(ev => new eventModels[ev.event](_.merge(ev.args, {network: network})).save())
+            .map(ev =>
+              ev.event === 'SetHash' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+                .then(() => new accountModel({network: network, address: ev.args.key}).save()) :
+                new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+            )
             .union([
               transactionModel.insertMany(res.txs),
               blockModel.findOneAndUpdate({network: network}, {
@@ -106,14 +110,15 @@ Promise.all([
         )
           .timeout(1000)
           .then(() => { //todo optimise
-            _.forEach(res.events, ev =>
-              eventEmitter.emit(ev.event, ev.args)
-            );
+            _.forEach(res.events, ev => {
+              eventEmitter.emit(ev.event, ev.args);
+            });
 
-            txService.events.emit('getTxs', ++currentBlock);
+            txService.events.emit('getBlock');
           })
           .catch(err => {
-            txService.events.emit('getTxs', currentBlock);
+            --currentBlock;
+            txService.events.emit('getBlock');
             log.debug(err);
           });
       });

@@ -6,7 +6,8 @@ const mongoose = require('mongoose');
 const Pin = new mongoose.Schema({
   hash: {type: String, required: true},
   created: {type: Date, required: true, default: Date.now},
-  updated: {type: Date, required: true, default: Date.now}
+  updated: {type: Date, required: true, default: Date.now},
+  network: {type: String}
 });
 
 module.exports = mongoose.model('Pin', Pin);

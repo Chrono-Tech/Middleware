@@ -1,6 +1,7 @@
 const Web3 = require('web3'),
   contract = require('truffle-contract'),
   path = require('path'),
+  net = require('net'),
   require_all = require('require-all'),
   _ = require('lodash'),
   bunyan = require('bunyan'),
@@ -17,8 +18,8 @@ const Web3 = require('web3'),
 module.exports = (provider_config) => {
 
   const instances = {},
-    provider = new Web3.providers.HttpProvider(`http://${provider_config.host}:${provider_config.port}`),
-    web3 = new Web3(),
+    provider = new Web3.providers.IpcProvider(provider_config.ipc, net);
+  const web3 = new Web3(),
     contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
       dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
       filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
@@ -31,15 +32,15 @@ module.exports = (provider_config) => {
     });
 
   web3.setProvider(provider);
-
   //get instances and build object {contract_name: instance}
-  return Promise.all(
-    _.map(contracts, c =>
-      c.deployed()
+  return Promise.each(
+    _.values(contracts),
+    contract =>
+      contract.deployed()
         .then(instance => {
-          return _.set(instances, c.toJSON().contract_name, instance);
-        }).catch(() => {})
-    )
+          return _.set(instances, contract.toJSON().contract_name, instance);
+        }).catch(() => {
+      })
   )
     .then(() =>
       Promise.resolve({instances, contracts, web3})
