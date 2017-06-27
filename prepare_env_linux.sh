@@ -4,8 +4,8 @@ rm -rf SmartContracts
 
 echo downloading repo...
 
-git clone -b develop https://github.com/Mikefluff/SmartContracts.git
-(cd SmartContracts  && git checkout 7cbfaaba94e5308b9642e6da5413e9c9f9828f1b)
+git clone -b develop https://github.com/ChronoBank/SmartContracts.git
+(cd SmartContracts  && git checkout b7277a1c2f6cdf8fa4df0282a8026ce402f87777)
 
 echo installing...
 

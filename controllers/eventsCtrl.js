@@ -31,6 +31,7 @@ module.exports = (contracts, web3) => {
             };
           }, {})
           .merge({
+            controlIndexHash: {type: String, unique: true, required: true},
             network: {type: String},
             created: {type: Date, required: true, default: Date.now}
           })

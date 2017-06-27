@@ -5,6 +5,7 @@ module.exports = (txs, event_addresses, eventSignatures, users) => {
 
   return _.transform(txs, (result, tx) => {
 
+    //console.log(_.keys(tx));
     if (_.get(tx, 'logs', []).length > 0) {
       _.chain(tx.logs)
         .filter(log => event_addresses.includes(log.address))
@@ -13,10 +14,14 @@ module.exports = (txs, event_addresses, eventSignatures, users) => {
           if (!signature_definition)
             return;
 
-          _.pullAt(ev, 0)
-
+          _.pullAt(ev, 0);
           let result_decoded = new solidityEvent(null, signature_definition).decode(ev);
-          result.events.push(_.pick(result_decoded, ['event', 'args']));
+          result.events.push(
+            _.chain(result_decoded)
+              .pick(['event', 'args'])
+              .merge({args: {controlIndexHash: `${ev.logIndex}:${ev.transactionHash}`}})
+              .value()
+          );
         })
         .value();
 

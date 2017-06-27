@@ -77,20 +77,26 @@ test('add new loc', () => {
 
 test('fetch changes for loc via getLoc', () =>
   new Promise(res => {
-    ctx.contracts.LOCManager.at(ctx.contracts_instances.MultiEventsHistory.address)
-      .allEvents({fromBlock: 0}).watch((err, result) => {
-      if (result && result.event === 'NewLOC') {
-        expect(result.args.locName).toBeDefined();
-        ctx.contracts_instances.LOCManager.getLOCByName(result.args.locName)
-          .then(data => {
-            if (data[4] === ctx.factory.Loc.hash) {
-              res();
-            }
-          })
-      }
-    });
+    ctx.web3.eth.getCoinbase((err, result) => res(result));
   })
-);
+    .then(coinbase =>
+      new Promise(res => {
+        ctx.contracts.LOCManager.at(ctx.contracts_instances.MultiEventsHistory.address)
+          .allEvents({fromBlock: 0}).watch((err, result) => {
+          if (result && result.event === 'NewLOC') {
+            expect(result.args.locName).toBeDefined();
+            ctx.contracts_instances.LOCManager.getLOCByName(result.args.locName, {from: coinbase})
+              .then(data => {
+                if (data[4] === ctx.factory.Loc.hash) {
+                  res();
+                }
+              })
+          }
+        });
+      })
+    )
+)
+;
 
 test('validate hash in mongo', () =>
   Promise.delay(20000)

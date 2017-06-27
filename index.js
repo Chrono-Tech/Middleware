@@ -59,7 +59,7 @@ Promise.all([
 ])
   .spread((contracts_ctx, currentBlock, accounts) => {
 
-    accounts = _.map(accounts, a=>a.address);
+    accounts = _.map(accounts, a => a.address);
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
@@ -68,11 +68,11 @@ Promise.all([
     let eventEmitter = new emitter();
 
     log.info(`search from block:${currentBlock} for network:${network}`);
-    let txService = listenTxsFromBlockIPCService();
+    let txService = listenTxsFromBlockIPCService(config.web3.networks[network]);
 
     txService.events.on('connected', () => {
 
-      txService.events.emit('getBlock'); //todo handle update through block
+      txService.events.emit('getBlock');
       txService.events.on('block', block => {
         block >= currentBlock ?
           txService.events.emit('getTxs', currentBlock++) :
@@ -95,17 +95,12 @@ Promise.all([
         Promise.all(
           _.chain(res.events)
             .map(ev =>
-              ev.event === 'SetHash' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-                .then(() => new accountModel({network: network, address: ev.args.key}).save()) :
+              ev.event === 'NewUserRegistered' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+                .then(() => new accountModel({network: network, address: ev.args.key}).save())
+                .then(() => accounts.push(ev.args.key)) :
                 new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
             )
-            .union([
-              transactionModel.insertMany(res.txs),
-              blockModel.findOneAndUpdate({network: network}, {
-                block: currentBlock,
-                created: Date.now()
-              }, {upsert: true})
-            ])
+            .union([transactionModel.insertMany(res.txs)])
             .value()
         )
           .timeout(1000)
@@ -117,9 +112,24 @@ Promise.all([
             txService.events.emit('getBlock');
           })
           .catch(err => {
-            --currentBlock;
+            if (_.get(err, 'code') !== 11000) {
+              --currentBlock;
+              log.info(err.code);
+            }
+
+            return Promise.resolve();
+          })
+          .then(() =>
+            blockModel.findOneAndUpdate({network: network}, {
+              block: currentBlock,
+              created: Date.now()
+            }, {upsert: true})
+          )
+          .then(() => {
             txService.events.emit('getBlock');
-            log.debug(err);
+          })
+          .catch(err => {
+            log.info(err);
           });
       });
 

@@ -10,7 +10,7 @@ const Transaction = new mongoose.Schema({
   gasUsed: {type: String},
   root: {type: String},
   to: {type: String},
-  transactionHash: {type: String},
+  transactionHash: {type: String, unique: true},
   value: {type: String},
   network: {type: String},
   created: {type: Date, required: true, default: Date.now},
