@@ -1,0 +1,10 @@
+FROM node:8.1
+
+RUN mkdir -p /usr/src/app
+RUN mkdir -p /usr/src/app/SmartContracts
+WORKDIR /usr/src/app
+COPY config controllers models plugins services index.js package.json truffle-config.js /usr/src/app/
+COPY SmartContracts/build /usr/src/app/SmartContracts
+RUN npm install
+EXPOSE 8081
+CMD [ "node", "."]

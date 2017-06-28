@@ -59,6 +59,12 @@ Promise.all([
 ])
   .spread((contracts_ctx, currentBlock, accounts) => {
 
+    if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address') || !_.has(contracts_ctx, 'instances.EventsHistory.address')) {
+      log.info(`contracts haven't been deployed to network - ${network}`);
+      log.info('restart process in one hour...');
+      return setTimeout(()=>process.exit(1), 3600 * 1000);
+    }
+
     accounts = _.map(accounts, a => a.address);
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
