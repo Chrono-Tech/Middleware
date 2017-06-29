@@ -15,7 +15,7 @@ const config = require('../../config'),
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
 
 beforeAll(() => {
-  return contractsCtrl(config.web3.networks.development)
+  return contractsCtrl('development')
     .then((data) => {
       ctx.contracts_instances = data.instances;
       ctx.contracts = data.contracts;

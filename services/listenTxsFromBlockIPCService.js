@@ -10,7 +10,7 @@ module.exports = (network) => {
   let delayResolver = _.debounce(() => {
     emitter.emit('txs', []);
   }, 5000);
-  let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\?\\pipe\\' : '/tmp/'}${network}_geth.ipc`, () => {
+  let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}_geth.ipc`, () => {
 
     emitter.on('getBlock', () => {
       latestBlock = null;

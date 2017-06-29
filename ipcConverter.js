@@ -20,6 +20,6 @@ const server = net.createServer(stream => {
 
 });
 
-server.listen(`${/^win/.test(process.platform) ? '\\\\?\\pipe\\' : '/tmp/'}development_geth.ipc`, () => {
+server.listen(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}development_geth.ipc`, () => {
   console.log('Server: on listening');
 });
