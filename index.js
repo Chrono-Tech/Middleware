@@ -53,7 +53,7 @@ let network = process.env.network;
 
 //init contracts on the following network and fetch the latest block for this network from mongo
 Promise.all([
-  contractsCtrl(config.web3.networks[network]),
+  contractsCtrl(network),
   blockModel.findOne({network: network}).sort('-block'),
   accountModel.find({network: network})
 ])
@@ -74,7 +74,7 @@ Promise.all([
     let eventEmitter = new emitter();
 
     log.info(`search from block:${currentBlock} for network:${network}`);
-    let txService = listenTxsFromBlockIPCService(config.web3.networks[network]);
+    let txService = listenTxsFromBlockIPCService(network);
 
     txService.events.on('connected', () => {
 

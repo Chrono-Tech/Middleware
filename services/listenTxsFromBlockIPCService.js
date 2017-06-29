@@ -2,7 +2,7 @@ const net = require('net'),
   _ = require('lodash'),
   EventEmitter = require('events');
 
-module.exports = (provider_config) => {
+module.exports = (network) => {
 
   let emitter = new EventEmitter();
   let latestBlock;
@@ -10,7 +10,7 @@ module.exports = (provider_config) => {
   let delayResolver = _.debounce(() => {
     emitter.emit('txs', []);
   }, 5000);
-  let client = net.createConnection(provider_config.ipc, () => {
+  let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\?\\pipe\\' : '/tmp/'}${network}_geth.ipc`, () => {
 
     emitter.on('getBlock', () => {
       latestBlock = null;

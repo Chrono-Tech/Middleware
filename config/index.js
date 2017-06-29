@@ -1,4 +1,7 @@
-const truffle_config = require('../truffle-config');
+require('dotenv').config();
+const truffle_config = require('chronobank-smart-contracts/truffle.js'),
+  url = require('url'),
+  _ = require('lodash');
 
 /**
  * @factory config
@@ -20,18 +23,23 @@ const truffle_config = require('../truffle-config');
  */
 
 module.exports = {
-  nodes: [
-    {'host': 'localhost', 'port': '32771', 'protocol': 'http'}
-  ],
+  nodes: process.env.IPFS_NODES ? _.chain(process.env.IPFS_NODES)
+    .split(',')
+    .map(i => {
+      i = url.parse(i.trim());
+      return {host: i.hostname, port: i.port, protocol: i.protocol.replace(':', '')};
+    })
+    .value() :
+    [{'host': 'localhost', 'port': '5001', 'protocol': 'http'}],
   web3: truffle_config,
   schedule: {
-    job: '30 * * * * *',
-    check_time: 0
+    job: process.env.SCHEDULE_JOB || '30 * * * * *',
+    check_time: parseInt(process.env.SCHEDULE_CHECK_TIME) || 0
   },
   mongo: {
-    uri: 'mongodb://localhost:32772/data'
+    uri: process.env.MONGO_URI || 'mongodb://localhost:27017/data'
   },
   rest: {
-    port: 8081
+    port: process.env.REST_PORT || 8081
   }
 };

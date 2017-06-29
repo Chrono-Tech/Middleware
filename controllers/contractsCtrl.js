@@ -11,17 +11,17 @@ const Web3 = require('web3'),
 /**
  * @module contracts Controller
  * @description initialize all contracts and web3
- * @param provider_config - single network from truffle-config.js
+ * @param network - network's name
  * @returns {Promise|Promise.<{instances, contracts, web3}>}
  */
 
-module.exports = (provider_config) => {
+module.exports = (network) => {
 
   const instances = {},
-    provider = new Web3.providers.IpcProvider(provider_config.ipc, net);
+    provider = new Web3.providers.IpcProvider(`${/^win/.test(process.platform) ? '\\\\?\\pipe\\' : '/tmp/'}${network}_geth.ipc`, net);
   const web3 = new Web3(),
     contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
-      dirname: path.join(__dirname, '../SmartContracts/build/contracts'),
+      dirname: path.join(__dirname, '../node_modules', 'chronobank-smart-contracts/build/contracts'),
       filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
       resolve: Contract => {
         let c = contract(Contract);
@@ -39,8 +39,7 @@ module.exports = (provider_config) => {
       contract.deployed()
         .then(instance => {
           return _.set(instances, contract.toJSON().contract_name, instance);
-        }).catch(() => {
-      })
+        }).catch(()=>{})
   )
     .then(() =>
       Promise.resolve({instances, contracts, web3})

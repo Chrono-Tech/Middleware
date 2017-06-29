@@ -18,12 +18,8 @@ const server = net.createServer(stream => {
       });
   });
 
-  /*  stream.on('end', () => {
-   server.close();
-   });*/
-
 });
 
-server.listen(config.web3.networks.development.ipc, () => {
+server.listen(`${/^win/.test(process.platform) ? '\\\\?\\pipe\\' : '/tmp/'}development_geth.ipc`, () => {
   console.log('Server: on listening');
 });
