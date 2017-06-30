@@ -24,6 +24,24 @@ const mongoose = require('mongoose'),
 const networks = _.keys(config.web3.networks);
 const workers = {};
 
+process.on('exit', code => {
+
+  log.info('master process exit!');
+
+  process.exit(code);
+});
+
+process.on('SIGINT', () => {
+  log.info('\nCTRL+C...');
+  process.exit(0);
+});
+
+// Catch uncaught exception
+process.on('uncaughtException', err => {
+  log.info(err);
+  process.exit(1);
+});
+
 //clustering the app to worker per network
 if (cluster.isMaster) {
   for (let i = 0; i < networks.length; i++) {
@@ -62,7 +80,7 @@ Promise.all([
     if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address') || !_.has(contracts_ctx, 'instances.EventsHistory.address')) {
       log.info(`contracts haven't been deployed to network - ${network}`);
       log.info('restart process in one hour...');
-      return setTimeout(()=>process.exit(1), 3600 * 1000);
+      return setTimeout(() => process.exit(1), 3600 * 1000);
     }
 
     accounts = _.map(accounts, a => a.address);
@@ -75,16 +93,18 @@ Promise.all([
 
     log.info(`search from block:${currentBlock} for network:${network}`);
     let txService = listenTxsFromBlockIPCService(network);
+    let blockDelay = _.throttle(() => {
+      log.info('reached limit...');
+      txService.events.emit('getBlock');
+    }, 10000);
 
     txService.events.on('connected', () => {
 
       txService.events.emit('getBlock');
       txService.events.on('block', block => {
-        block >= currentBlock ?
+        block && block >= currentBlock ?
           txService.events.emit('getTxs', currentBlock++) :
-          setTimeout(() => {
-            txService.events.emit('getBlock');
-          }, 10000);
+          blockDelay();
       });
 
       txService.events.on('txs', (txs) => {

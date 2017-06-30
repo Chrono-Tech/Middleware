@@ -39,8 +39,7 @@ module.exports = (network) => {
       contract.deployed()
         .then(instance => {
           return _.set(instances, contract.toJSON().contract_name, instance);
-        }).catch((e) => {
-      })
+        }).catch((e) => {log.debug(e);})
   )
     .then(() =>
       Promise.resolve({instances, contracts, web3})

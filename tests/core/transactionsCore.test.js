@@ -3,7 +3,11 @@ const config = require('../../config'),
   ipfsAPI = require('ipfs-api'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
+  accountModel = require('../../models').accountModel,
+  transactionModel = require('../../models').transactionModel,
   contractsCtrl = require('../../controllers').contractsCtrl,
+  eventsCtrl = require('../../controllers').eventsCtrl,
+  blockModel = require('../../models').blockModel,
   mongoose = require('mongoose'),
   ctx = {
     contracts_instances: {},
@@ -13,10 +17,11 @@ const config = require('../../config'),
     },
     contracts: {},
     accounts: [],
+    eventModels: {},
     web3: null
   };
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000;
 
 beforeAll(() => {
   return contractsCtrl('development')
@@ -24,7 +29,7 @@ beforeAll(() => {
       ctx.contracts_instances = data.instances;
       ctx.contracts = data.contracts;
       ctx.web3 = data.web3;
-
+      ctx.eventModels = eventsCtrl(data.instances, data.web3).eventModels;
       return new Promise(res => {
         ctx.web3.eth.getAccounts((err, result) => res(result));
       })
@@ -32,13 +37,15 @@ beforeAll(() => {
     .then(accounts => {
       ctx.accounts = accounts;
       return mongoose.connect(config.mongo.uri);
-
     })
+    .then(() => helpers.awaitLastBlock(ctx))
+
 });
 
-afterAll(() =>
-  mongoose.disconnect()
-);
+afterAll(() => {
+  ctx.web3.currentProvider.connection.end();
+  return mongoose.disconnect();
+});
 
 test('add new CBE', () => {
 
@@ -101,10 +108,8 @@ test('fetch changes via SetHash event', () =>
 test('validate hash in mongo', () =>
   Promise.delay(20000)
     .then(() =>
-      mongoose.model('SetHash', new mongoose.Schema({
-          newHash: {type: mongoose.Schema.Types.Mixed}
-        }
-      )).findOne({newHash: ctx.factory.BCE.hash})
+      ctx.eventModels.SetHash
+        .findOne({newHash: ctx.factory.BCE.hash})
     )
     .then(result => {
       expect(result).toBeDefined();
@@ -116,10 +121,7 @@ test('validate hash in mongo', () =>
 test('validate account in mongo', () =>
   Promise.delay(20000)
     .then(() =>
-      mongoose.model('account', new mongoose.Schema({
-          address: {type: String}
-        }
-      )).findOne({address: ctx.factory.BCE.account})
+      accountModel.findOne({address: ctx.factory.BCE.account})
     )
     .then(result => {
       expect(result).toBeDefined();
@@ -147,10 +149,7 @@ test('create tx for user', () =>
 test('validate tx in mongo', () =>
   Promise.delay(20000)
     .then(() =>
-      mongoose.model('transaction', new mongoose.Schema({
-          from: {type: String}
-        }
-      )).findOne({from: ctx.factory.BCE.account})
+      transactionModel.findOne({from: ctx.factory.BCE.account})
     )
     .then(result => {
       expect(result).toBeDefined();
@@ -188,7 +187,7 @@ test('create tx for not authorized on platform user', () =>
 test('validate tx doesn\'t exist in mongo', () =>
   Promise.delay(20000)
     .then(() =>
-      mongoose.model('transaction')
+      transactionModel
         .findOne({from: ctx.factory.nonBCE.account})
     )
     .then(result => {

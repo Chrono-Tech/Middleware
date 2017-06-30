@@ -1,5 +1,7 @@
 const net = require('net'),
   _ = require('lodash'),
+  bunyan = require('bunyan'),
+  log = bunyan.createLogger({name: 'services.listenTxsFromBlockIPCService'}),
   EventEmitter = require('events');
 
 module.exports = (network) => {
@@ -9,12 +11,19 @@ module.exports = (network) => {
   let blockWithTx;
   let delayResolver = _.debounce(() => {
     emitter.emit('txs', []);
-  }, 5000);
+  }, 2000);
+
+  let delayBlockResolver = _.debounce(() => {
+    emitter.emit('block', null);
+  }, 1000);
+
+
   let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}_geth.ipc`, () => {
 
     emitter.on('getBlock', () => {
       latestBlock = null;
       client.write('{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}');//get latest block
+      delayBlockResolver();
     });
 
     emitter.on('getTxs', block => {
@@ -29,6 +38,7 @@ module.exports = (network) => {
       try {
         data = JSON.parse(data);
       } catch (e) {
+        log.error(e);
       }
 
       if (_.get(data, 'result.transactions', []).length > 0 && !blockWithTx) {

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
-    "test": "node ./node_modules/jest/bin/jest.js --coverage --runInBand",
+    "test": "node ./node_modules/jest/bin/jest.js test --coverage --runInBand",
     "testrpc": "node ./ipcConverter.js | node ./node_modules/ethereumjs-testrpc/bin/testrpc",
     "prepare_linux": "bash prepare_env_linux.sh",
     "prepare_linux_install": "bash prepare_env_linux.sh --install",

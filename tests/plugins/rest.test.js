@@ -7,6 +7,7 @@ const config = require('../../config'),
   eventsCtrl = require('../../controllers').eventsCtrl,
   mongoose = require('mongoose'),
   request = require('request'),
+  blockModel = require('../../models').blockModel,
   moment = require('moment'),
   ctx = {
     events: {},
@@ -27,11 +28,13 @@ beforeAll(() => {
       ctx.web3 = data.web3;
       return mongoose.connect(config.mongo.uri);
     })
+    .then(() => helpers.awaitLastBlock(ctx))
 });
 
-afterAll(() =>
-  mongoose.disconnect()
-);
+afterAll(() => {
+  ctx.web3.currentProvider.connection.end();
+  return mongoose.disconnect();
+});
 
 test('validate all routes', () =>
   Promise.all(
@@ -126,4 +129,4 @@ test('validate query language', () =>
       expect(createdItem).toBeUndefined();
 
     })
-)
+);
