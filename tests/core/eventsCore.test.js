@@ -1,53 +1,37 @@
-const config = require('../../config.json'),
-  Web3 = require('web3'),
-  web3 = new Web3(),
-  contract = require("truffle-contract"),
+const config = require('../../config'),
   _ = require('lodash'),
   ipfsAPI = require('ipfs-api'),
   Promise = require('bluebird'),
-  provider = new Web3.providers.HttpProvider(config.web3.url),
   helpers = require('../helpers'),
   contractsCtrl = require('../../controllers').contractsCtrl,
-  chronoBankPlatformEmitter_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatformEmitter"),
-  chronoBankPlatform_definition = require("../../SmartContracts/build/contracts/ChronoBankPlatform"),
-  chronomint_definition = require("../../SmartContracts/build/contracts/LOCManager"),
+  eventsCtrl = require('../../controllers').eventsCtrl,
   mongoose = require('mongoose'),
-  contracts = {},
-  contracts_instances = {},
-  factory = {};
+  ctx = {
+    contracts_instances: {},
+    factory: {},
+    contracts: {},
+    eventModels: {},
+    web3: null
+  };
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 180000;
 
 beforeAll(() => {
-  web3.setProvider(provider);
-  let chronoBankPlatform = contract(chronoBankPlatform_definition);
-  let chronoBankPlatformEmitter = contract(chronoBankPlatformEmitter_definition);
-  let chronoMint = contract(chronomint_definition);
-
-  [chronoBankPlatform, chronoBankPlatformEmitter, chronoMint]
-    .forEach(c => {
-      c.defaults({from: web3.eth.coinbase, gas: 3000000});
-      c.setProvider(provider);
-    });
-
-  return contractsCtrl()
+  return contractsCtrl('development')
     .then((data) => {
-      _.merge(contracts_instances, data.instances);
-      _.merge(contracts, data.contracts);
-      return Promise.all([
-        chronoBankPlatformEmitter.at(contracts_instances.EventsHistory.address),
-        chronoMint.at(contracts_instances.MultiEventsHistory.address)
-      ])
-    })
-    .then((data) => {
-      contracts.mint = _.last(data);
+      ctx.contracts_instances = data.instances;
+      ctx.contracts = data.contracts;
+      ctx.web3 = data.web3;
+      ctx.eventModels = eventsCtrl(data.instances, data.web3).eventModels;
       return mongoose.connect(config.mongo.uri);
     })
+    .then(() => helpers.awaitLastBlock(ctx))
 });
 
-afterAll(() =>
-  mongoose.disconnect()
-);
+afterAll(() => {
+  ctx.web3.currentProvider.connection.end();
+  return mongoose.disconnect();
+});
 
 test('add new loc', () => {
 
@@ -65,24 +49,30 @@ test('add new loc', () => {
       .value()
   )
     .then((data) => {
-      factory.Loc = {
+      ctx.factory.Loc = {
         name: helpers.bytes32(helpers.generateRandomString()),
         website: helpers.bytes32("www.ru"),
         issueLimit: 1000000,
         hash: helpers.bytes32fromBase58(data[0].toJSON().multihash),
         expDate: Math.round(+new Date() / 1000),
         currency: helpers.bytes32('LHT')
-
       };
-      return contracts_instances.LOCManager.addLOC(
-        factory.Loc.name,
-        factory.Loc.website,
-        factory.Loc.issueLimit,
-        factory.Loc.hash,
-        factory.Loc.expDate,
-        factory.Loc.currency
-      )
+
+      return new Promise(res => {
+        ctx.web3.eth.getCoinbase((err, result) => res(result));
+      })
     })
+    .then((coinbase) =>
+      ctx.contracts_instances.LOCManager.addLOC(
+        ctx.factory.Loc.name,
+        ctx.factory.Loc.website,
+        ctx.factory.Loc.issueLimit,
+        ctx.factory.Loc.hash,
+        ctx.factory.Loc.expDate,
+        ctx.factory.Loc.currency,
+        {from: coinbase}
+      )
+    )
     .then(result => {
       expect(result).toBeDefined();
       expect(result.tx).toBeDefined();
@@ -90,30 +80,10 @@ test('add new loc', () => {
     })
 });
 
-test('fetch changes for loc via getLoc', () =>
-  new Promise(res => {
-    contracts.LOCManager.at(contracts_instances.MultiEventsHistory.address)
-      .allEvents({fromBlock: 0}).watch((err, result) => {
-      if (result && result.event === 'NewLOC') {
-        expect(result.args.locName).toBeDefined();
-        contracts_instances.LOCManager.getLOCByName(result.args.locName)
-          .then(data => {
-            if (data[4] === factory.Loc.hash) {
-              res();
-            }
-          })
-      }
-    });
-  })
-);
-
 test('validate hash in mongo', () =>
-  Promise.delay(2000)
+  Promise.delay(20000)
     .then(() =>
-      mongoose.model('NewLOC', new mongoose.Schema({
-          locName: {type: mongoose.Schema.Types.Mixed}
-        }
-      )).findOne({locName: factory.Loc.name})
+      ctx.eventModels.NewLOC.findOne({locName: ctx.factory.Loc.name})
     )
     .then(result => {
       expect(result).toBeDefined();
@@ -138,17 +108,24 @@ test('update loc', () => {
       .value()
   )
     .then((data) => {
-      factory.Loc.old_hash = factory.Loc.hash;
-      factory.Loc.hash = helpers.bytes32fromBase58(data[0].toJSON().multihash);
-      return contracts_instances.LOCManager.setLOC(
-        factory.Loc.name,
-        factory.Loc.name,
-        factory.Loc.website,
-        factory.Loc.issueLimit,
-        factory.Loc.hash,
-        factory.Loc.expDate
-      )
+      ctx.factory.Loc.old_hash = ctx.factory.Loc.hash;
+      ctx.factory.Loc.hash = helpers.bytes32fromBase58(data[0].toJSON().multihash);
+
+      return new Promise(res => {
+        ctx.web3.eth.getCoinbase((err, result) => res(result));
+      })
     })
+    .then(coinbase =>
+      ctx.contracts_instances.LOCManager.setLOC(
+        ctx.factory.Loc.name,
+        ctx.factory.Loc.name,
+        ctx.factory.Loc.website,
+        ctx.factory.Loc.issueLimit,
+        ctx.factory.Loc.hash,
+        ctx.factory.Loc.expDate,
+        {from: coinbase}
+      )
+    )
     .then(result => {
       expect(result).toBeDefined();
       expect(result.tx).toBeDefined();
@@ -156,32 +133,26 @@ test('update loc', () => {
     })
 });
 
-
 test('fetch changes for loc via HashUpdate event', () =>
   new Promise(res => {
-    contracts.LOCManager.at(contracts_instances.MultiEventsHistory.address)
-    .allEvents({fromBlock: 0}).watch((err, result) => {
-      if (result && result.event === 'HashUpdate' && result.args.newHash === factory.Loc.hash) {
+    ctx.contracts.LOCManager.at(ctx.contracts_instances.MultiEventsHistory.address)
+      .allEvents({fromBlock: 0}).watch((err, result) => {
+      if (result && result.event === 'HashUpdate' && result.args.newHash === ctx.factory.Loc.hash) {
         res();
       }
     });
   })
 );
 
-
 test('validate new hash in mongo', () =>
-  Promise.delay(2000)
+  Promise.delay(20000)
     .then(() =>
-      mongoose.model('hashupdates', new mongoose.Schema({
-          oldHash: {type: mongoose.Schema.Types.Mixed},
-          newHash: {type: mongoose.Schema.Types.Mixed}
-        }
-      )).findOne({oldHash: factory.Loc.old_hash, newHash: factory.Loc.hash})
+      ctx.eventModels.HashUpdate
+        .findOne({oldHash: ctx.factory.Loc.old_hash, newHash: ctx.factory.Loc.hash})
     )
     .then(result => {
       expect(result).toBeDefined();
       return Promise.resolve();
     })
 );
-
 
