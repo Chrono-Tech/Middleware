@@ -9,13 +9,13 @@ Features:
 ### Installation
 
 1) Clone the repo
-2) setup your network for truffle contracts in truffle-config.js
-3) run ethereum / testrpc (for testrpc you can use "npm run testrpc")
-4) run:
+2) run:
 ```
 npm install
 ```
-3) run environment preparation script - thus will download smartContracts repo, and will install all contracts on your ethereum network / testrpc:
+2) setup your network for truffle contracts in node_modules/chronobank-smart-contracts/truffle.js (for test purpose, you can miss this step - it's configured on default development network, running on localhost:8545)
+3) run ethereum / testrpc (for testrpc you can use "npm run testrpc")
+4) run environment preparation script - thus will install all contracts on your ethereum network / testrpc:
 ```
 npm run prepare_linux_install
 ```
@@ -36,36 +36,26 @@ npm run prepare_win
 
 
 ### Configure
-The config/index.js you can find in the root folder of project (which already includes default settings):
+To apply your configuration, create a .env file in root folder of repo (in case it's not present already).
+Below is the expamle configuration:
 
 ```
-{
-  nodes:[
-    {host: "ipfs.infura.io", port: "5001", protocol: "https"}
-  ],
-  web3: truffle_config,
-  schedule: {
-    job: "30 * * * * *",
-    check_time: 0
-  },
-  mongo: {
-    uri: "mongodb://localhost:27017/data"
-  },
-    rest: {
-    port: 8080
-  }
-}
+MONGO_URI=mongodb://localhost:27017/data
+REST_PORT=8081
+IPFS_NODES=http://localhost:5001, http://localhost:5001
+SCHEDULE_JOB=30 * * * * *
+SCHEDULE_CHECK_TIME=0
 ```
 
 The options are presented below:
 
 | name | description|
 | ------ | ------ |
-| nodes[array]   | contains an array of ipfs nodes
-| web3[object]   | rerefence to truffle-config.json
-| schedule[object]   | represent cron job (for ipfs plugin)
-| mongo[object]   | mongo uri connection string
-| rest[object]   | rest plugin server options
+| MONGO_URI   | the URI string for mongo connection
+| REST_PORT   | rest plugin port
+| IPFS_NODES   | should contain a comma separated uri connection strings for ipfs nodes
+| SCHEDULE_JOB   | a configuration for ipfs pin plugin in a cron based format
+| SCHEDULE_CHECK_TIME   | an option, which defines how old should be records, which have to be pinned
 
 ### Run
 Just cd to root project's dir and type:
