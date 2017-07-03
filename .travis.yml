@@ -17,8 +17,7 @@ before_install:
   - ipfs init
 
 install:
-  - npm set npm_config_arch ia32
-  - npm install --arch=ia32
+  - npm install
 
 before_script:
     - ipfs daemon > /dev/null &
