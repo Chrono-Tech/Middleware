@@ -4,6 +4,7 @@ Middleware services for chronobank
 
 Features:
   - Record all events from Chronomint and Chronobank smart contracts
+  - Keep transactions of registered users
   - has a build-in plugin system
 
 ### Installation
@@ -45,6 +46,7 @@ REST_PORT=8081
 IPFS_NODES=http://localhost:5001, http://localhost:5001
 SCHEDULE_JOB=30 * * * * *
 SCHEDULE_CHECK_TIME=0
+DOMAIN=localhost
 ```
 
 The options are presented below:
