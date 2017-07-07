@@ -1,6 +1,7 @@
 const net = require('net'),
   config = require('./config'),
   bunyan = require('bunyan'),
+  fs = require('fs'),
   log = bunyan.createLogger({name: 'ipcConverter'}),
   request = require('request');
 
@@ -19,6 +20,10 @@ const server = net.createServer(stream => {
   });
 
 });
+
+if (!/^win/.test(process.platform) && !fs.existsSync('/tmp/development')){
+  fs.mkdirSync('/tmp/development');
+}
 
 server.listen(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}development/geth.ipc`, () => {
   log.info('Server: on listening');
