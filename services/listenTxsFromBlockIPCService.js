@@ -18,7 +18,7 @@ module.exports = (network) => {
   }, 1000);
 
 
-  let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}_geth.ipc`, () => {
+  let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, () => {
 
     emitter.on('getBlock', () => {
       latestBlock = null;
