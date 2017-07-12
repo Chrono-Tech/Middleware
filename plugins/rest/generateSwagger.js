@@ -3,6 +3,7 @@ const require_all = require('require-all'),
   _ = require('lodash'),
   config = require('../../config'),
   transactionModel = require('../../models/transactionModel'),
+  accountModel = require('../../models/accountModel'),
   contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
     dirname: path.join(__dirname, '../../node_modules', 'chronobank-smart-contracts/build/contracts'),
     filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/
@@ -101,6 +102,34 @@ let definition = _.chain(contracts)
               result.push({
                 'name': name,
                 'in': 'query',
+                'required': false,
+                'type': obj.type === Number ? 'integer' : 'string'
+              });
+            }, []),
+          responses: {
+            200: {
+              description: 'successful operation',
+              schema: {
+                type: 'object'
+              }
+            }
+          }
+        }
+      },
+      '/account': {
+        post: {
+          tags: [
+            'account'
+          ],
+          summary: 'add new account for transaction listener',
+          produces: [
+            'application/json'
+          ],
+          parameters:
+            _.transform(accountModel.schema.obj, (result, obj, name)=>{
+              result.push({
+                'name': name,
+                'in': 'body',
                 'required': false,
                 'type': obj.type === Number ? 'integer' : 'string'
               });

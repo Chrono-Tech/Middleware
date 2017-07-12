@@ -2,11 +2,14 @@ const express = require('express'),
   _ = require('lodash'),
   app = express(),
   cors = require('cors'),
+  bodyParser = require('body-parser'),
   collectionRouter = express.Router(),
   bunyan = require('bunyan'),
   config = require('../../config'),
   generateSwagger = require('./generateSwagger'),
+  accountModel = require('../../models').accountModel,
   transactionModel = require('../../models').transactionModel,
+  messages = require('../../factories').messages.genericMessageFactory,
   log = bunyan.createLogger({name: 'plugins.rest'}),
   q2mb = require('query-to-mongo-and-back');
 
@@ -25,6 +28,8 @@ const express = require('express'),
 module.exports = (ctx) => {
 
   app.use(cors());
+  app.use(bodyParser.urlencoded({extended: false}));
+  app.use(bodyParser.json());
 
   app.get('/', (req, res) => {
     res.send({
@@ -50,6 +55,30 @@ module.exports = (ctx) => {
         log.error(err);
         res.send([]);
       });
+  });
+
+  app.post('/account', (req, res) => {
+    let account = new accountModel(req.body);
+    let error = account.validateSync();
+
+    if (error) {
+      return res.send(
+        _.chain(error)
+          .get('errors', {})
+          .toPairs()
+          .get('0.1.properties', messages.fail)
+          .pick(['success', 'message'])
+          .value()
+      );
+    }
+
+    return account.save()
+      .then(() => {
+        ctx.users.push(account.address);
+        res.send(messages.success);
+      })
+      .catch(() => res.send(messages.fail));
+
   });
 
   //return all available collections to user

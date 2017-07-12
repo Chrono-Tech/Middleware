@@ -94,7 +94,7 @@ Promise.all([
     log.info(`search from block:${currentBlock} for network:${network}`);
     let txService = listenTxsFromBlockIPCService(network);
     let blockDelay = _.throttle(() => {
-      log.info('reached limit...');
+      log.info(`await for next block with current ${currentBlock}...`);
       txService.events.emit('getBlock');
     }, 10000);
 
@@ -102,9 +102,11 @@ Promise.all([
 
       txService.events.emit('getBlock');
       txService.events.on('block', block => {
-        block && block >= currentBlock ?
-          txService.events.emit('getTxs', currentBlock++) :
-          blockDelay();
+        block === -1 ?
+          txService.events.emit('getTxs', currentBlock) :
+          block && block >= currentBlock ?
+            txService.events.emit('getTxs', currentBlock++) :
+            blockDelay();
       });
 
       txService.events.on('txs', (txs) => {
@@ -117,6 +119,9 @@ Promise.all([
           event_ctx.signatures,
           accounts
         );
+
+        if (res.events.length || res.txs.length)
+          log.info(res);
 
         Promise.all(
           _.chain(res.events)
@@ -168,7 +173,8 @@ Promise.all([
         contracts_instances: contract_instances,
         eventModels: eventModels,
         contracts: contracts,
-        network: network
+        network: network,
+        users: accounts
       }))
       .value();
 

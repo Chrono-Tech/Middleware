@@ -9,27 +9,21 @@ module.exports = (network) => {
   let emitter = new EventEmitter();
   let latestBlock;
   let blockWithTx;
-  let delayResolver = _.debounce(() => {
-    emitter.emit('txs', []);
-  }, 2000);
-
-  let delayBlockResolver = _.debounce(() => {
-    emitter.emit('block', null);
-  }, 1000);
-
+  let status = 0; //0 - block, 1 - tx payload, 2 - tx itself
 
   let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, () => {
 
     emitter.on('getBlock', () => {
       latestBlock = null;
+      status = 0;
       client.write('{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}');//get latest block
-      delayBlockResolver();
+      //delayBlockResolver();
     });
 
     emitter.on('getTxs', block => {
       blockWithTx = null;
+      status = 1;
       client.write(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x${(block).toString(16)}", true], "id":1}`);
-      delayResolver(block);
     });
 
     emitter.emit('connected');
@@ -38,19 +32,22 @@ module.exports = (network) => {
       try {
         data = JSON.parse(data);
       } catch (e) {
-        log.error(e);
+        //log.error(e);
+        status === 1 ?
+          emitter.emit('block', -1) :
+          emitter.emit('txs', []);
       }
 
-      if (_.get(data, 'result.transactions', []).length > 0 && !blockWithTx) {
+      if (status === 1 && _.get(data, 'result.transactions', []).length > 0) {
         blockWithTx = data.result;
+        status = 2;
         data.result.transactions.forEach(tx =>
           client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`)
         );
         return;
       }
 
-      //if (_.has(data, 'result.logs') && blockWithTx) {
-      if (_.has(data, 'result.transactionHash') && blockWithTx) {
+      if (status === 2 && _.has(data, 'result.transactionHash') && blockWithTx) {
         let index = _.findIndex(blockWithTx.transactions, {hash: data.result.transactionHash});
         _.merge(blockWithTx.transactions[index], data.result);
 
@@ -59,16 +56,17 @@ module.exports = (network) => {
 
         if (index === blockWithTx.transactions.length - 1) {
           emitter.emit('txs', blockWithTx.transactions);
-          delayResolver.cancel();
         }
 
         return;
       }
 
-      if (!latestBlock) {
+      if (status === 0) {
         latestBlock = parseInt(data.result, 16);
         return emitter.emit('block', latestBlock);
       }
+
+      return emitter.emit('txs', []);
 
     });
 
