@@ -5,9 +5,10 @@ const config = require('../../config'),
   ipfsAPI = require('ipfs-api'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   eventsCtrl = require('../../controllers').eventsCtrl,
+  transactionModel = require('../../models').transactionModel,
+  accountModel = require('../../models').accountModel,
   mongoose = require('mongoose'),
   request = require('request'),
-  blockModel = require('../../models').blockModel,
   moment = require('moment'),
   ctx = {
     events: {},
@@ -26,6 +27,13 @@ beforeAll(() => {
       ctx.contracts = data.contracts;
       ctx.events = eventsCtrl(data.instances, data.web3);
       ctx.web3 = data.web3;
+
+      return new Promise(res => {
+        ctx.web3.eth.getAccounts((err, result) => res(result));
+      });
+    })
+    .then(accounts => {
+      ctx.accounts = accounts;
       return mongoose.connect(config.mongo.uri);
     })
     .then(() => helpers.awaitLastBlock(ctx))
@@ -116,7 +124,6 @@ test('validate query language', () =>
         )
       )
     )
-
     .spread((locName, noLocName, network, created) => {
 
       let noItem = _.find(noLocName, {locName: ctx.factory.Loc.encoded_name});
@@ -128,5 +135,64 @@ test('validate query language', () =>
       expect(networkItem).toBeDefined();
       expect(createdItem).toBeUndefined();
 
+    })
+);
+
+test('add new account', () =>
+  Promise.all(
+    _.map(ctx.events.eventModels, (model, name) =>
+      new Promise((res, rej) =>
+        request({
+          url: `http://localhost:${config.rest.port}/account`,
+          method: 'POST',
+          json: {
+            address: _.last(ctx.accounts)
+          }
+        }, (err, resp) => {
+          err || resp.statusCode !== 200 ? rej(err) : res()
+        })
+      )
+    )
+  )
+);
+
+test('check account in db', () =>
+  Promise.delay(20000)
+    .then(()=>
+      accountModel.findOne({address: _.last(ctx.accounts)})
+    )
+    .then(result => {
+      expect(result).toBeDefined();
+      return Promise.resolve();
+    })
+);
+
+
+test('create tx for registered account', () =>
+  new Promise(res => {
+    ctx.web3.eth.sendTransaction({
+      from: _.first(ctx.accounts),
+      to: _.last(ctx.accounts),
+      value: ctx.web3.toWei(0.05, 'ether')
+    }, (err, address) => {
+      res(address);
+    });
+  })
+    .then(result => {
+      expect(result).toBeDefined();
+      return Promise.resolve();
+    })
+);
+
+
+
+test('check tx in db', () =>
+  Promise.delay(20000)
+    .then(()=>
+      transactionModel.findOne({from: _.last(ctx.accounts)})
+    )
+    .then(result => {
+      expect(result).toBeDefined();
+      return Promise.resolve();
     })
 );

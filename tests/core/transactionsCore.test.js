@@ -7,7 +7,6 @@ const config = require('../../config'),
   transactionModel = require('../../models').transactionModel,
   contractsCtrl = require('../../controllers').contractsCtrl,
   eventsCtrl = require('../../controllers').eventsCtrl,
-  blockModel = require('../../models').blockModel,
   mongoose = require('mongoose'),
   ctx = {
     contracts_instances: {},
