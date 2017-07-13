@@ -93,7 +93,7 @@ Promise.all([
 
     log.info(`search from block:${currentBlock} for network:${network}`);
     let txService = listenTxsFromBlockIPCService(network);
-    let blockDelay = _.throttle(() => {
+    let blockDelay = _.debounce(() => {
       log.info(`await for next block with current ${currentBlock}...`);
       txService.events.emit('getBlock');
     }, 10000);
@@ -134,14 +134,6 @@ Promise.all([
             .union([transactionModel.insertMany(res.txs)])
             .value()
         )
-          .timeout(1000)
-          .then(() => { //todo optimise
-            _.forEach(res.events, ev => {
-              eventEmitter.emit(ev.event, ev.args);
-            });
-
-            txService.events.emit('getBlock');
-          })
           .catch(err => {
             if (_.get(err, 'code') !== 11000) {
               --currentBlock;
@@ -157,6 +149,9 @@ Promise.all([
             }, {upsert: true})
           )
           .then(() => {
+            _.forEach(res.events, ev => {
+              eventEmitter.emit(ev.event, ev.args);
+            });
             txService.events.emit('getBlock');
           })
           .catch(err => {
