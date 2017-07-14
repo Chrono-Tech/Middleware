@@ -22,7 +22,8 @@ install:
 before_script:
     - ipfs daemon > /dev/null &
     - npm run testrpc > /dev/null &
-    - sleep 5 && npm run prepare_linux_install
+    - node -p "`truffle@${require('./node_modules/chronobank-smart-contracts/package.json').dependencies.truffle}`" | xargs npm install -g
+    - (cd node_modules/chronobank-smart-contracts && truffle migrate && truffle exec setup/*)
     - node . > /dev/null &
 
 script:
