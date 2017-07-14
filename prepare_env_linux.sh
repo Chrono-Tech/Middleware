@@ -6,7 +6,7 @@ package=$(node -p "require('./node_modules/chronobank-smart-contracts/package.js
 
 echo installing truffle $package
 
-npm install -g $(echo "truffle@"$package)
+npm install -g $(echo "truffle@"$package) web3
 
 for i in "$@"
 do
