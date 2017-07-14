@@ -33,22 +33,32 @@ module.exports = (network) => {
         data = JSON.parse(data);
       } catch (e) {
         //log.error(e);
-        status === 1 ?
-          emitter.emit('block', -1) :
-          emitter.emit('txs', []);
+
+        if (status === 0)
+          return emitter.emit('block', -1);
+
+        if (status === 2)
+          blockWithTx.transactions.forEach(tx => {
+            if (!_.has(tx, 'logs'))
+              return client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`);
+          });
+
+        return emitter.emit('txs', []);
       }
 
       if (status === 1 && _.get(data, 'result.transactions', []).length > 0) {
         blockWithTx = data.result;
         status = 2;
-        data.result.transactions.forEach(tx =>
-          client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`)
-        );
+        data.result.transactions.forEach(tx => {
+          if (!_.has(tx, 'logs'))
+            client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`);
+        });
         return;
       }
 
       if (status === 2 && _.has(data, 'result.transactionHash') && blockWithTx) {
         let index = _.findIndex(blockWithTx.transactions, {hash: data.result.transactionHash});
+        //console.log(data.result)
         _.merge(blockWithTx.transactions[index], data.result);
 
         if (index === -1)
