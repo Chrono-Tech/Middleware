@@ -16,8 +16,8 @@ done
 
 if [[ -n "$INSTALL" ]]; then
     echo "running deployment task of smart contracts..."
-    (cd node_modules/chronobank-smart-contracts && node ../truffle/cli migrate && node ../truffle/cli exec setup/*)
+    (cd node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled migrate && node ../truffle/build/cli.bundled exec setup/*)
 else
     echo "compiling smart contracts"
-    (cd node_modules/chronobank-smart-contracts && node ../truffle/cli compile)
+    (cd node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled compile)
 fi
