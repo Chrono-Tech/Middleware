@@ -73,7 +73,7 @@ let network = process.env.network;
 Promise.all([
   contractsCtrl(network),
   blockModel.findOne({network: network}).sort('-block'),
-  accountModel.find({network: network})
+  accountModel.find({})
 ])
   .spread((contracts_ctx, currentBlock, accounts) => {
 
@@ -120,10 +120,11 @@ Promise.all([
         })
         .then((txs) =>
           Promise.map(txs, tx => {
-            return new Promise(res => {
-              txService.events.emit('getTxReceipt', tx);
-              txService.events.once('txReceipt', res);
-            });
+            return parseInt(tx.value) > 0 ?
+              tx : new Promise(res => {
+                txService.events.emit('getTxReceipt', tx);
+                txService.events.once('txReceipt', res);
+              });
           }, {concurrency: 1})
         )
         .then(txs =>
@@ -134,8 +135,8 @@ Promise.all([
           )
         )
         .then((res) => {
-          if (res.events.length > 0 || res.txs.length > 0)
-            log.info(res);
+//          if (res.events.length > 0 || res.txs.length > 0)
+//            log.info(res);
 
           return Promise.all(
             _.chain(res.events)
@@ -147,7 +148,12 @@ Promise.all([
               )
               .union([transactionModel.insertMany(res.txs)])
               .value()
-          );
+          )
+            .then(() => {
+              _.forEach(res.events, ev => {
+                eventEmitter.emit(ev.event, ev.args);
+              });
+            });
         })
         .then(() =>
           blockModel.findOneAndUpdate({network: network}, {
