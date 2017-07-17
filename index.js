@@ -87,7 +87,6 @@ Promise.all([
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
-    currentBlock = 550000;
     let event_ctx = eventsCtrl(contract_instances, contracts_ctx.web3);
     let eventModels = event_ctx.eventModels;
     let eventEmitter = new emitter();
