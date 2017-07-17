@@ -7,23 +7,27 @@ const net = require('net'),
 module.exports = (network) => {
 
   let emitter = new EventEmitter();
-  let latestBlock;
-  let blockWithTx;
-  let status = 0; //0 - block, 1 - tx payload, 2 - tx itself
+  let ctx = {
+    status: 0
+  };
 
   let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, () => {
 
     emitter.on('getBlock', () => {
-      latestBlock = null;
-      status = 0;
+      ctx.status = 0;
       client.write('{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}');//get latest block
-      //delayBlockResolver();
     });
 
     emitter.on('getTxs', block => {
-      blockWithTx = null;
-      status = 1;
+      ctx.status = 1;
+      ctx.block = block;
       client.write(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x${(block).toString(16)}", true], "id":1}`);
+    });
+
+    emitter.on('getTxReceipt', tx => {
+      ctx.status = 2;
+      ctx.tx = tx;
+      client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`);
     });
 
     emitter.emit('connected');
@@ -32,51 +36,25 @@ module.exports = (network) => {
       try {
         data = JSON.parse(data);
       } catch (e) {
-        //log.error(e);
 
-        if (status === 0)
+        if (ctx.status === 0)
           return emitter.emit('block', -1);
 
-        if (status === 2)
-          blockWithTx.transactions.forEach(tx => {
-            if (!_.has(tx, 'logs'))
-              return client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`);
-          });
+        if (ctx.status === 1)
+          return client.write(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x${(ctx.block).toString(16)}", true], "id":1}`);
 
-        return emitter.emit('txs', []);
+        if (ctx.status === 2)
+          return client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${ctx.tx.hash}"],"id":1}`);
       }
 
-      if (status === 1 && _.get(data, 'result.transactions', []).length > 0) {
-        blockWithTx = data.result;
-        status = 2;
-        data.result.transactions.forEach(tx => {
-          if (!_.has(tx, 'logs'))
-            client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`);
-        });
-        return;
-      }
+      if (ctx.status === 0)
+        return emitter.emit('block', parseInt(data.result, 16));
 
-      if (status === 2 && _.has(data, 'result.transactionHash') && blockWithTx) {
-        let index = _.findIndex(blockWithTx.transactions, {hash: data.result.transactionHash});
-        //console.log(data.result)
-        _.merge(blockWithTx.transactions[index], data.result);
+      if (ctx.status === 1)
+        return emitter.emit('txs', data.result.transactions);
 
-        if (index === -1)
-          return emitter.emit('txs', []);
-
-        if (index === blockWithTx.transactions.length - 1) {
-          emitter.emit('txs', blockWithTx.transactions);
-        }
-
-        return;
-      }
-
-      if (status === 0) {
-        latestBlock = parseInt(data.result, 16);
-        return emitter.emit('block', latestBlock);
-      }
-
-      return emitter.emit('txs', []);
+      if (ctx.status === 2)
+        return emitter.emit('txReceipt', data.result);
 
     });
 

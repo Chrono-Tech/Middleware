@@ -87,81 +87,95 @@ Promise.all([
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
+    currentBlock = 550000;
     let event_ctx = eventsCtrl(contract_instances, contracts_ctx.web3);
     let eventModels = event_ctx.eventModels;
     let eventEmitter = new emitter();
 
     log.info(`search from block:${currentBlock} for network:${network}`);
     let txService = listenTxsFromBlockIPCService(network);
-    let blockDelay = _.debounce(() => {
-      log.info(`await for next block with current ${currentBlock}...`);
-      txService.events.emit('getBlock');
-    }, 10000);
+
+    let fetcher = () =>
+      new Promise(res => {
+        txService.events.emit('getBlock');
+        txService.events.once('block', block => {
+          res(block);
+        });
+      })
+        .then(block => {
+
+          if (!block || block < currentBlock)
+            return Promise.reject({code: 0});
+
+          block === -1 ?
+            txService.events.emit('getTxs', currentBlock) :
+            txService.events.emit('getTxs', currentBlock++);
+
+          return new Promise((resolve, reject) => {
+            txService.events.once('txs', (txs) => {
+              if (!txs || _.isEmpty(txs))
+                return reject({code: 1});
+              resolve(txs);
+            });
+          });
+        })
+        .then((txs) =>
+          Promise.map(txs, tx => {
+            return new Promise(res => {
+              txService.events.emit('getTxReceipt', tx);
+              txService.events.once('txReceipt', res);
+            });
+          }, {concurrency: 1})
+        )
+        .then(txs =>
+          aggregateTxsByBlockService(txs,
+            [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
+            event_ctx.signatures,
+            accounts
+          )
+        )
+        .then((res) => {
+          if (res.events.length > 0 || res.txs.length > 0)
+            log.info(res);
+
+          return Promise.all(
+            _.chain(res.events)
+              .map(ev =>
+                ev.event === 'NewUserRegistered' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+                  .then(() => new accountModel({network: network, address: ev.args.key}).save())
+                  .then(() => accounts.push(ev.args.key)) :
+                  new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+              )
+              .union([transactionModel.insertMany(res.txs)])
+              .value()
+          );
+        })
+        .then(() =>
+          blockModel.findOneAndUpdate({network: network}, {
+            block: currentBlock,
+            created: Date.now()
+          }, {upsert: true})
+        )
+        .then(() => {
+          fetcher();
+        })
+        .catch(err => {
+          if (![0, 1, 11000].includes(_.get(err, 'code')))
+            --currentBlock;
+
+          if (_.get(err, 'code') === 0)
+            log.info(currentBlock);
+
+          _.get(err, 'code') === 0 ?
+            setTimeout(fetcher, 10000) :
+            fetcher();
+        });
 
     txService.events.on('connected', () => {
-
-      txService.events.emit('getBlock');
-      txService.events.on('block', block => {
-        block === -1 ?
-          txService.events.emit('getTxs', currentBlock) :
-          block && block >= currentBlock ?
-            txService.events.emit('getTxs', currentBlock++) :
-            blockDelay();
-      });
-
-      txService.events.on('txs', (txs) => {
-        if (!txs || _.isEmpty(txs)) {
-          return txService.events.emit('getBlock');
-        }
-
-        let res = aggregateTxsByBlockService(txs,
-          [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
-          event_ctx.signatures,
-          accounts
-        );
-
-        if (res.events.length || res.txs.length)
-          log.info(res);
-
-        Promise.all(
-          _.chain(res.events)
-            .map(ev =>
-              ev.event === 'NewUserRegistered' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-                .then(() => new accountModel({network: network, address: ev.args.key}).save())
-                .then(() => accounts.push(ev.args.key)) :
-                new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-            )
-            .union([transactionModel.insertMany(res.txs)])
-            .value()
-        )
-          .catch(err => {
-            if (_.get(err, 'code') !== 11000) {
-              --currentBlock;
-              log.info(err.code);
-            }
-
-            return Promise.resolve();
-          })
-          .then(() =>
-            blockModel.findOneAndUpdate({network: network}, {
-              block: currentBlock,
-              created: Date.now()
-            }, {upsert: true})
-          )
-          .then(() => {
-            _.forEach(res.events, ev => {
-              eventEmitter.emit(ev.event, ev.args);
-            });
-            txService.events.emit('getBlock');
-          })
-          .catch(err => {
-            log.info(err);
-          });
-      });
-
+      fetcher();
     });
 
-    //register plugins
+//register plugins
     _.chain(plugins).values()
       .forEach(plugin => plugin({
         events: eventEmitter,
@@ -173,4 +187,5 @@ Promise.all([
       }))
       .value();
 
-  });
+  })
+;
