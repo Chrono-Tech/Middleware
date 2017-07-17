@@ -163,7 +163,7 @@ Promise.all([
             --currentBlock;
 
           if (_.get(err, 'code') === 0)
-            log.info(currentBlock);
+            log.info(`await for next block ${currentBlock}`);
 
           _.get(err, 'code') === 0 ?
             setTimeout(fetcher, 10000) :
