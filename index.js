@@ -103,7 +103,7 @@ Promise.all([
       })
         .then(block => {
 
-          if (!block || block < currentBlock)
+          if (!block || (block !== -1 && block < currentBlock))
             return Promise.reject({code: 0});
 
           block === -1 ?
@@ -135,11 +135,9 @@ Promise.all([
           )
         )
         .then((res) => {
-//          if (res.events.length > 0 || res.txs.length > 0)
-//            log.info(res);
-
           return Promise.all(
-            _.chain(res.events)
+            _.chain(res)
+              .get('events')
               .map(ev =>
                 ev.event === 'NewUserRegistered' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
                   .then(() => new accountModel({network: network, address: ev.args.key}).save())
@@ -150,9 +148,11 @@ Promise.all([
               .value()
           )
             .then(() => {
-              _.forEach(res.events, ev => {
-                eventEmitter.emit(ev.event, ev.args);
-              });
+              _.chain(res)
+                .get('events')
+                .forEach(ev => {
+                  eventEmitter.emit(ev.event, ev.args);
+                });
             });
         })
         .then(() =>
@@ -161,6 +161,7 @@ Promise.all([
             created: Date.now()
           }, {upsert: true})
         )
+        .delay(10)
         .then(() => {
           fetcher();
         })
