@@ -67,19 +67,17 @@ module.exports = (network) => {
         }
 
         ctx.wrong_count++;
+        client.resume();
 
         if (ctx.status === 0)
-          return emitter.emit('block', -1);
+          return client.write('{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}');
 
-        if (ctx.status === 1) {
-          client.resume();
+        if (ctx.status === 1)
           return client.write(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x${(ctx.block).toString(16)}", true], "id":1}`);
-        }
 
-        if (ctx.status === 2) {
-          client.resume();
+        if (ctx.status === 2)
           return client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${ctx.tx.hash}"],"id":1}`);
-        }
+
       }
 
       reply(data);

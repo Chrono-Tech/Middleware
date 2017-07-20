@@ -103,17 +103,18 @@ Promise.all([
       })
         .then(block => {
 
-          if (!block || (block !== -1 && block < currentBlock))
+          if (block === -1)
+            return Promise.reject({code: 1});
+
+          if (block < currentBlock)
             return Promise.reject({code: 0});
 
-          block === -1 ?
-            txService.events.emit('getTxs', currentBlock) :
-            txService.events.emit('getTxs', currentBlock++);
+          txService.events.emit('getTxs', currentBlock++);
 
           return new Promise((resolve, reject) => {
             txService.events.once('txs', (txs) => {
               if (!txs || _.isEmpty(txs))
-                return reject({code: 1});
+                return reject({code: 2});
               resolve(txs);
             });
           });
@@ -166,11 +167,14 @@ Promise.all([
           fetcher();
         })
         .catch(err => {
-          if (![0, 1, 11000].includes(_.get(err, 'code')))
+          if (![0, 1, 2, 11000].includes(_.get(err, 'code')))
             --currentBlock;
 
           if (_.get(err, 'code') === 0)
             log.info(`await for next block ${currentBlock}`);
+
+          if (_.get(err, 'code') === 1)
+            log.info(`found a broken block ${currentBlock}`);
 
           _.get(err, 'code') === 0 ?
             setTimeout(fetcher, 10000) :
