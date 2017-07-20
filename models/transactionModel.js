@@ -25,11 +25,22 @@ const Transaction = new mongoose.Schema({
       message: messages.wrongTo
     }
   },
-  transactionHash: {type: String, unique: true},
+  hash: {type: String},
   value: {type: String},
   network: {type: String},
+  payload: {
+    type: String,
+    unique: true,
+    required: true
+  },
   created: {type: Date, required: true, default: Date.now},
 
+});
+
+
+Transaction.pre('validate', function(next) {
+  this.payload = `${this.blockNumber}:${this.hash}`;
+  next();
 });
 
 module.exports = mongoose.model('Transaction', Transaction);
