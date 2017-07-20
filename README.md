@@ -69,10 +69,12 @@ node .
 In order to retrieve the saved records from db,
 we expose them via rest api. The route system is look like so:
 
-| route | description|
-| ------ | ------ |
-| /events   | returns list of all available events
-| /events/{event_name}   | returns an event's collection
+| route | methods | params | description |
+| ------ | ------ | ------ | ------ |
+| /events   | GET | |returns list of all available events
+| /events/{event_name}   | GET | |returns an event's collection
+| /transactions   | GET |  | returns an transaction's collection
+| /account   | POST | address - an account's address | returns an transaction's collection
 
 #### REST guery language
 
