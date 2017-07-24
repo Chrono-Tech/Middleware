@@ -7,7 +7,7 @@ const express = require('express'),
   bunyan = require('bunyan'),
   config = require('../../config'),
   generateSwagger = require('./generateSwagger'),
-  accountModel = require('../../models').accountModel,
+  eventListenerModel = require('./models/eventListenerModel'),
   transactionModel = require('../../models').transactionModel,
   messages = require('../../factories').messages.genericMessageFactory,
   log = bunyan.createLogger({name: 'plugins.rest'}),
@@ -57,9 +57,9 @@ module.exports = (ctx) => {
       });
   });
 
-  app.post('/account', (req, res) => {
-    let account = new accountModel(req.body);
-    let error = account.validateSync();
+  app.post('/listener', (req, res) => {
+    let eventListener = new eventListenerModel(req.body);
+    let error = eventListener.validateSync();
 
     if (error) {
       return res.send(
@@ -72,10 +72,9 @@ module.exports = (ctx) => {
       );
     }
 
-    return account.save()
+    return eventListener.save()
       .then(() => {
-        ctx.users.push(account.address);
-        res.send(messages.success);
+        res.send(messages.success);//todo create listeners array
       })
       .catch(() => res.send(messages.fail));
 
