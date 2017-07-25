@@ -153,7 +153,8 @@ Promise.all([
                 .get('events')
                 .forEach(ev => {
                   eventEmitter.emit(ev.event, ev.args);
-                });
+                })
+                .value();
             });
         })
         .then(() =>

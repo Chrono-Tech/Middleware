@@ -5,7 +5,6 @@ const mongoose = require('mongoose'),
  *  @description eventListener model - is used to store callbacks
  */
 const EventListener = new mongoose.Schema({
-  account: {type: String, required: true},
   event: {type: String, required: true},
   callback: {type: String, required: true},
   filter: {
@@ -17,8 +16,9 @@ const EventListener = new mongoose.Schema({
           return false;
         }
       return true;
-    }, 'wrong filter']
-  }
+    }, 'wrong filter'],
+  },
+  fails: {type: Array, required: false, default: []}
 });
 
 module.exports = mongoose.model('EventListener', EventListener);
