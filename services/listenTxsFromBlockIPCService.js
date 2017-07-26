@@ -1,7 +1,5 @@
 const net = require('net'),
   _ = require('lodash'),
-  bunyan = require('bunyan'),
-  log = bunyan.createLogger({name: 'services.listenTxsFromBlockIPCService'}),
   EventEmitter = require('events');
 
 module.exports = (network) => {

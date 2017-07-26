@@ -41,6 +41,6 @@ module.exports = {
   },
   rest: {
     domain: process.env.DOMAIN || 'localhost',
-    port: process.env.REST_PORT || 8081
+    port: parseInt(process.env.REST_PORT) || 8081
   }
 };

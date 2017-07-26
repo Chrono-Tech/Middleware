@@ -3,7 +3,7 @@ const q2mb = require('query-to-mongo-and-back'),
   express = require('express'),
   collectionRouter = express.Router(),
   eventListenerModel = require('../models/eventListenerModel'),
-  eventEmitterService = require('../services/eventEmitterService'),
+  eventEmitterService = require('../services/eventEmitter/eventEmitterService'),
   log = bunyan.createLogger({name: 'plugins.rest.routes.eventRouter'}),
   messages = require('../../../factories').messages.genericMessageFactory,
   _ = require('lodash');
@@ -18,7 +18,7 @@ module.exports = (app, ctx) => {
 
   //register each event in express by its name
   _.forEach(ctx.eventModels, (model, name) => {
-    app.get(`/${name}`, (req, res) => {
+    collectionRouter.get(`/${name}`, (req, res) => {
       //convert query request to mongo's
       let q = q2mb.fromQuery(req.query);
       //retrieve all records, which satisfy the query

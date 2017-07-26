@@ -5,20 +5,24 @@ const config = require('../../config'),
   ipfsAPI = require('ipfs-api'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   eventsCtrl = require('../../controllers').eventsCtrl,
-  transactionModel = require('../../models').transactionModel,
-  accountModel = require('../../models').accountModel,
+  http = require('http'),
+  express = require('express'),
   mongoose = require('mongoose'),
   request = require('request'),
+  bodyParser = require('body-parser'),
   moment = require('moment'),
   ctx = {
     events: {},
     contracts_instances: {},
     factory: {},
     contracts: {},
+    express: {
+      app: express()
+    },
     web3: null
   };
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 90000;
 
 beforeAll(() => {
   return contractsCtrl('development')
@@ -27,6 +31,9 @@ beforeAll(() => {
       ctx.contracts = data.contracts;
       ctx.events = eventsCtrl(data.instances, data.web3);
       ctx.web3 = data.web3;
+      ctx.express.server = http.createServer(ctx.express.app);
+      ctx.express.app.use(bodyParser.urlencoded({extended: false}));
+      ctx.express.app.use(bodyParser.json());
 
       return new Promise(res => {
         ctx.web3.eth.getAccounts((err, result) => res(result));
@@ -34,13 +41,19 @@ beforeAll(() => {
     })
     .then(accounts => {
       ctx.accounts = accounts;
-      return mongoose.connect(config.mongo.uri);
+      return Promise.all([
+        new Promise(res =>
+          ctx.express.server.listen(config.rest.port + 1, res)
+        ),
+        mongoose.connect(config.mongo.uri)
+      ])
     })
     .then(() => helpers.awaitLastBlock(ctx))
 });
 
 afterAll(() => {
   ctx.web3.currentProvider.connection.end();
+  ctx.express.server.close();
   return mongoose.disconnect();
 });
 
@@ -138,61 +151,53 @@ test('validate query language', () =>
     })
 );
 
-test('add new account', () =>
-  Promise.all(
-    _.map(ctx.events.eventModels, (model, name) =>
-      new Promise((res, rej) =>
-        request({
-          url: `http://localhost:${config.rest.port}/account`,
-          method: 'POST',
-          json: {
-            address: _.last(ctx.accounts)
-          }
-        }, (err, resp) => {
-          err || resp.statusCode !== 200 ? rej(err) : res()
-        })
-      )
-    )
+test('add new filter', () =>
+  new Promise((res, rej) =>
+    request({
+      url: `http://localhost:${config.rest.port}/events/listener`,
+      method: 'POST',
+      json: {
+        callback: `http://localhost:${config.rest.port + 1}/test`,
+        event: 'transfer',
+        filter: {
+          to: ctx.accounts[1],
+          symbol: helpers.bytes32('TIME')
+        }
+      }
+    }, (err, resp) => {
+      err || resp.statusCode !== 200 ? rej(err) : res()
+    })
   )
 );
 
-test('check account in db', () =>
-  Promise.delay(20000)
-    .then(()=>
-      accountModel.findOne({address: _.last(ctx.accounts)})
-    )
+test('add TIME Asset', () => {
+  return ctx.contracts_instances.AssetsManager.addAsset(
+    ctx.contracts_instances.ChronoBankAssetProxy.address, 'TIME', ctx.accounts[0], {
+      from: ctx.accounts[0],
+      gas: 3000000
+    })
     .then(result => {
       expect(result).toBeDefined();
+      expect(result.tx).toBeDefined();
       return Promise.resolve();
-    })
-);
-
-
-test('create tx for registered account', () =>
-  new Promise(res => {
-    ctx.web3.eth.sendTransaction({
-      from: _.first(ctx.accounts),
-      to: _.last(ctx.accounts),
-      value: ctx.web3.toWei(0.05, 'ether')
-    }, (err, address) => {
-      res(address);
     });
-  })
-    .then(result => {
-      expect(result).toBeDefined();
-      return Promise.resolve();
+});
+
+test('validate callback on transfer event', () => {
+
+  return Promise.all([
+    ctx.contracts_instances.AssetsManager.sendAsset(
+      helpers.bytes32('TIME'), ctx.accounts[1], 100, {
+        from: ctx.accounts[0],
+        gas: 3000000
+      }),
+    new Promise(resolve => {
+      ctx.express.app.post('/test', (req, res) => {
+        expect(req.body.to).toEqual(ctx.accounts[1]);
+        expect(req.body.symbol).toEqual(helpers.bytes32('TIME'));
+        resolve();
+        res.send();
+      });
     })
-);
-
-
-
-test('check tx in db', () =>
-  Promise.delay(20000)
-    .then(()=>
-      transactionModel.findOne({from: _.last(ctx.accounts)})
-    )
-    .then(result => {
-      expect(result).toBeDefined();
-      return Promise.resolve();
-    })
-);
+  ]);
+});

@@ -55,6 +55,7 @@ test('add TIME Asset', () => {
     });
 });
 
+/*
 test('add LHT Asset', () => {
   return ctx.contracts_instances.AssetsManager.addAsset(
     ctx.contracts_instances.ChronoBankAssetProxy.address,
@@ -69,6 +70,7 @@ test('add LHT Asset', () => {
       return Promise.resolve();
     });
 });
+*/
 
 test('send 100 TIME to owner1 from owner', () => {
   return ctx.contracts_instances.AssetsManager.sendAsset(
