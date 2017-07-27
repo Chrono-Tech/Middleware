@@ -1,5 +1,5 @@
 {
-  "name": "ipfs_eth_daemon",
+  "name": "middleware",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",

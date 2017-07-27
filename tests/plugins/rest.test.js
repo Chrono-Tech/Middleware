@@ -32,6 +32,7 @@ beforeAll(() => {
       ctx.events = eventsCtrl(data.instances, data.web3);
       ctx.web3 = data.web3;
       ctx.express.server = http.createServer(ctx.express.app);
+      ctx.express.test_route = `/test/${+new Date()}`;
       ctx.express.app.use(bodyParser.urlencoded({extended: false}));
       ctx.express.app.use(bodyParser.json());
 
@@ -157,7 +158,7 @@ test('add new filter', () =>
       url: `http://localhost:${config.rest.port}/events/listener`,
       method: 'POST',
       json: {
-        callback: `http://localhost:${config.rest.port + 1}/test`,
+        callback: `http://localhost:${config.rest.port + 1}${ctx.express.test_route}`,
         event: 'transfer',
         filter: {
           to: ctx.accounts[1],
@@ -192,7 +193,7 @@ test('validate callback on transfer event', () => {
         gas: 3000000
       }),
     new Promise(resolve => {
-      ctx.express.app.post('/test', (req, res) => {
+      ctx.express.app.post(ctx.express.test_route, (req, res) => {
         expect(req.body.to).toEqual(ctx.accounts[1]);
         expect(req.body.symbol).toEqual(helpers.bytes32('TIME'));
         resolve();
