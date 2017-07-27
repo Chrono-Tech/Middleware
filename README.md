@@ -74,7 +74,7 @@ we expose them via rest api. The route system is look like so:
 | /events   | GET | |returns list of all available events
 | /events/{event_name}   | GET | |returns an event's collection
 | /transactions   | GET |  | returns an transaction's collection
-| /account   | POST | address - an account's address | returns an transaction's collection
+| /events/listener   | POST | callback - callback url (should be a POST one), event - event's name, filter - object, by which event's data will be filtered | register an event's listener with certain criteria (or filter) - when event is emitted, a callback will be fired with event's data and send it with POST request
 
 #### REST guery language
 
