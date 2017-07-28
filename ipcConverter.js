@@ -28,7 +28,7 @@ networks.forEach(network => {
   });
 
   if (!/^win/.test(process.platform) && !fs.existsSync(`/tmp/${network}`)) {
-    fs.mkdirSync(`/tmp/${process.env.network}`);
+    fs.mkdirSync(`/tmp/${network}`);
   }
 
   server.listen(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, () => {
