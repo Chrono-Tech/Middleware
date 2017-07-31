@@ -1,20 +1,21 @@
 const net = require('net'),
-  config = require('./config'),
+  config = require('chronobank-smart-contracts/truffle'),
   bunyan = require('bunyan'),
   fs = require('fs'),
   log = bunyan.createLogger({name: 'ipcConverter'}),
   _ = require('lodash'),
-  request = require('request');
+  request = require('request'),
+  TestRPC = require('ethereumjs-testrpc');
 
-const networks = _.keys(config.web3.networks);
+let RPCServer = TestRPC.server();
+RPCServer.listen(8545);
 
-
-networks.forEach(network => {
+_.keys(config.networks).forEach((network) => {
 
   const server = net.createServer(stream => {
 
     stream.on('data', c => {
-      request.post(`http://${config.web3.networks[network].host}:${config.web3.networks[network].port}`,
+      request.post(`http://${config.networks[network].host}:${config.networks[network].port}`,
         {body: c.toString()}, (err, resp, body) => {
           try {
             JSON.parse(body);

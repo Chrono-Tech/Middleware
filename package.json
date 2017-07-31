@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
     "test": "node ./node_modules/jest/bin/jest.js test --coverage --runInBand",
-    "testrpc": "node ./ipcConverter.js | node ./node_modules/ethereumjs-testrpc/bin/testrpc",
+    "testrpc": "node ./ipcConverter.js",
     "prepare_linux": "bash prepare_env_linux.sh",
     "prepare_linux_install": "bash prepare_env_linux.sh --install",
     "prepare_win": "prepare_env_win.bat",
@@ -18,7 +18,6 @@
     "abi-decoder": "^1.0.8",
     "body-parser": "^1.17.2",
     "bunyan": "^1.8.10",
-    "chronobank-smart-contracts": "git+https://github.com/ChronoBank/SmartContracts.git#develop",
     "cors": "^2.8.3",
     "dotenv": "^4.0.0",
     "express": "^4.15.3",

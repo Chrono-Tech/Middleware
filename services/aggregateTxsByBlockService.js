@@ -1,7 +1,9 @@
 const _ = require('lodash'),
-  solidityEvent = require('web3/lib/web3/event.js');
+  solidityEvent = require('web3/lib/web3/event.js'),
+  Web3 = require('web3'),
+  web3 = new Web3();
 
-module.exports = (txs, event_addresses, eventSignatures, users) => {
+module.exports = (txs, event_addresses, eventSignatures, users, network) => {
 
   return _.transform(txs, (result, tx) => {
 
@@ -19,7 +21,7 @@ module.exports = (txs, event_addresses, eventSignatures, users) => {
           result.events.push(
             _.chain(result_decoded)
               .pick(['event', 'args'])
-              .merge({args: {controlIndexHash: `${ev.logIndex}:${ev.transactionHash}`}})
+              .merge({args: {controlIndexHash: `${ev.logIndex}:${ev.transactionHash}:${web3.sha3(network)}`}})
               .value()
           );
         })

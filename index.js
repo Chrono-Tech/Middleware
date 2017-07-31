@@ -87,7 +87,7 @@ Promise.all([
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
-    let event_ctx = eventsCtrl(contracts, contracts_ctx.web3);
+    let event_ctx = eventsCtrl(contracts);
     let eventModels = event_ctx.eventModels;
     let eventEmitter = new emitter();
 
@@ -132,7 +132,8 @@ Promise.all([
           aggregateTxsByBlockService(txs,
             [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
             event_ctx.signatures,
-            accounts
+            accounts,
+            network
           )
         )
         .then((res) => {
