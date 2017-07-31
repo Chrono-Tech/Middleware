@@ -7,6 +7,7 @@ const mongoose = require('mongoose'),
 const EventListener = new mongoose.Schema({
   event: {type: String, required: true},
   callback: {type: String, required: true},
+  controlIndexHash: {type: String, required: true},
   filter: {
     type: mongoose.Schema.Types.Mixed, required: true, validate: [v => {
       if (!_.isObject(v))
@@ -18,7 +19,9 @@ const EventListener = new mongoose.Schema({
       return true;
     }, 'wrong filter'],
   },
-  fails: {type: Array, required: false, default: []}
+  fails: {type: Array, required: false, default: []},
+  updated: {type: Date, default: Date.now, required: true, expires: 86400 * 30}
+
 });
 
 module.exports = mongoose.model('EventListener', EventListener);

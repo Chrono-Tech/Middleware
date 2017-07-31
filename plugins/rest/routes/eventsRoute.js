@@ -6,6 +6,8 @@ const q2mb = require('query-to-mongo-and-back'),
   eventEmitterService = require('../services/eventEmitter/eventEmitterService'),
   log = bunyan.createLogger({name: 'plugins.rest.routes.eventRouter'}),
   messages = require('../../../factories').messages.genericMessageFactory,
+  Web3 = require('web3'),
+  web3 = new Web3(),
   _ = require('lodash');
 
 module.exports = (app, ctx) => {
@@ -36,7 +38,8 @@ module.exports = (app, ctx) => {
   });
 
   collectionRouter.post('/listener', (req, res) => {
-    let eventListener = new eventListenerModel(req.body);
+    let eventListener = new eventListenerModel(
+      _.merge(req.body, {controlIndexHash: `${web3.sha3(req.body.callback)}:${web3.sha3(req.body.event)}:${web3.sha3(JSON.stringify(req.body.filter))}`}));
     let error = eventListener.validateSync();
 
     if (error) {
@@ -58,13 +61,23 @@ module.exports = (app, ctx) => {
 
   });
 
+  collectionRouter.delete('/listener', (req, res) => {
+
+    return eventListenerModel.remove({controlIndexHash: req.body.id})
+      .then(() => {
+        res.send(messages.success);
+      })
+      .catch(() => res.send(messages.fail));
+
+  });
+
   //register all events under namespace 'events'
   app.use('/events', collectionRouter);
 
   _.chain(ctx.eventModels)
     .keys()
-    .forEach(event=>{
-      ctx.events.on(event, data=>{
+    .forEach(event => {
+      ctx.events.on(event, data => {
         eventEmitterService(event, ctx.eventModels[event], data);
       });
     })

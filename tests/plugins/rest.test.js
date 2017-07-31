@@ -202,3 +202,31 @@ test('validate callback on transfer event', () => {
     })
   ]);
 });
+
+
+test('remove filter', () => {
+
+  let listener = {
+    callback: `http://localhost:${config.rest.port + 1}${ctx.express.test_route}`,
+    event: 'transfer',
+    filter: {
+      to: ctx.accounts[1],
+      symbol: helpers.bytes32('TIME')
+    }
+  };
+
+  return new Promise((res, rej) =>
+    request({
+      url: `http://localhost:${config.rest.port}/events/listener`,
+      method: 'DELETE',
+      json: {
+        id: `${ctx.web3.sha3(listener.callback)}:${ctx.web3.sha3(listener.event)}:${ctx.web3.sha3(JSON.stringify(listener.filter))}`
+      }
+    }, (err, resp) => {
+      err || resp.statusCode !== 200 ? rej(err) : res(resp.body)
+    })
+  )
+    .then(response=>{
+      expect(response.success).toEqual(true);
+    })
+});
