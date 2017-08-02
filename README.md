@@ -4,6 +4,7 @@ Middleware services for chronobank
 
 Features:
   - Record all events from Chronomint and Chronobank smart contracts
+  - Keep transactions of registered users
   - has a build-in plugin system
 
 ### Installation
@@ -45,6 +46,7 @@ REST_PORT=8081
 IPFS_NODES=http://localhost:5001, http://localhost:5001
 SCHEDULE_JOB=30 * * * * *
 SCHEDULE_CHECK_TIME=0
+DOMAIN=localhost
 ```
 
 The options are presented below:
@@ -67,10 +69,12 @@ node .
 In order to retrieve the saved records from db,
 we expose them via rest api. The route system is look like so:
 
-| route | description|
-| ------ | ------ |
-| /events   | returns list of all available events
-| /events/{event_name}   | returns an event's collection
+| route | methods | params | description |
+| ------ | ------ | ------ | ------ |
+| /events   | GET | |returns list of all available events
+| /events/{event_name}   | GET | |returns an event's collection
+| /transactions   | GET |  | returns an transaction's collection
+| /events/listener   | POST | callback - callback url (should be a POST one), event - event's name, filter - object, by which event's data will be filtered | register an event's listener with certain criteria (or filter) - when event is emitted, a callback will be fired with event's data and send it with POST request
 
 #### REST guery language
 

@@ -1,25 +1,40 @@
 const net = require('net'),
-  config = require('./config'),
+  config = require('chronobank-smart-contracts/truffle'),
   bunyan = require('bunyan'),
+  fs = require('fs'),
   log = bunyan.createLogger({name: 'ipcConverter'}),
-  request = require('request');
+  _ = require('lodash'),
+  request = require('request'),
+  TestRPC = require('ethereumjs-testrpc');
 
-const server = net.createServer(stream => {
+let RPCServer = TestRPC.server();
+RPCServer.listen(8545);
 
-  stream.on('data', c => {
-    request.post(`http://${config.web3.networks.development.host}:${config.web3.networks.development.port}`,
-      {body: c.toString()}, (err, resp, body) => {
-        try {
-          JSON.parse(body);
-          stream.write(body);
-        } catch (e) {
-          log.error(e);
-        }
-      });
+_.keys(config.networks).forEach((network) => {
+
+  const server = net.createServer(stream => {
+
+    stream.on('data', c => {
+      request.post(`http://${config.networks[network].host}:${config.networks[network].port}`,
+        {body: c.toString()}, (err, resp, body) => {
+          try {
+            JSON.parse(body);
+            stream.write(body);
+          } catch (e) {
+            log.error(e);
+          }
+        });
+    });
+
+  });
+
+  if (!/^win/.test(process.platform) && !fs.existsSync(`/tmp/${network}`)) {
+    fs.mkdirSync(`/tmp/${network}`);
+  }
+
+  server.listen(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, () => {
+    log.info(`Server: on listening for network - ${network}`);
   });
 
 });
 
-server.listen(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}development_geth.ipc`, () => {
-  log.info('Server: on listening');
-});

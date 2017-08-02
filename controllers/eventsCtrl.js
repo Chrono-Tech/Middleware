@@ -1,5 +1,7 @@
 const _ = require('lodash'),
   utils = require('web3/lib/utils/utils.js'),
+  Web3 = require('web3'),
+  web3 = new Web3(),
   mongoose = require('mongoose');
 
 /**
@@ -11,7 +13,7 @@ const _ = require('lodash'),
  * @returns {{eventModels, signatures}}
  */
 
-module.exports = (contracts, web3) => {
+module.exports = (contracts) => {
 
   let eventModels = _.chain(contracts)
     .map(value => //fetch all events
@@ -20,8 +22,18 @@ module.exports = (contracts, web3) => {
         .value()
     )
     .flatten()
-    .uniqBy('name') //remove duplicates
+    .groupBy('name')
+    .map(ev => ({
+        name: ev[0].name,
+        inputs: _.chain(ev)
+          .map(ev => ev.inputs)
+          .flattenDeep()
+          .uniqBy('name')
+          .value()
+      })
+    )
     .transform((result, ev) => { //build mongo model, based on event definition from abi
+
       result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
         _.chain(ev.inputs)
           .transform((result, obj) => {

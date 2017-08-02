@@ -5,19 +5,24 @@ const config = require('../../config'),
   ipfsAPI = require('ipfs-api'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   eventsCtrl = require('../../controllers').eventsCtrl,
+  http = require('http'),
+  express = require('express'),
   mongoose = require('mongoose'),
   request = require('request'),
-  blockModel = require('../../models').blockModel,
+  bodyParser = require('body-parser'),
   moment = require('moment'),
   ctx = {
     events: {},
     contracts_instances: {},
     factory: {},
     contracts: {},
+    express: {
+      app: express()
+    },
     web3: null
   };
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 90000;
 
 beforeAll(() => {
   return contractsCtrl('development')
@@ -26,13 +31,30 @@ beforeAll(() => {
       ctx.contracts = data.contracts;
       ctx.events = eventsCtrl(data.instances, data.web3);
       ctx.web3 = data.web3;
-      return mongoose.connect(config.mongo.uri);
+      ctx.express.server = http.createServer(ctx.express.app);
+      ctx.express.test_route = `/test/${+new Date()}`;
+      ctx.express.app.use(bodyParser.urlencoded({extended: false}));
+      ctx.express.app.use(bodyParser.json());
+
+      return new Promise(res => {
+        ctx.web3.eth.getAccounts((err, result) => res(result));
+      });
+    })
+    .then(accounts => {
+      ctx.accounts = accounts;
+      return Promise.all([
+        new Promise(res =>
+          ctx.express.server.listen(config.rest.port + 1, res)
+        ),
+        mongoose.connect(config.mongo.uri)
+      ])
     })
     .then(() => helpers.awaitLastBlock(ctx))
 });
 
 afterAll(() => {
   ctx.web3.currentProvider.connection.end();
+  ctx.express.server.close();
   return mongoose.disconnect();
 });
 
@@ -116,7 +138,6 @@ test('validate query language', () =>
         )
       )
     )
-
     .spread((locName, noLocName, network, created) => {
 
       let noItem = _.find(noLocName, {locName: ctx.factory.Loc.encoded_name});
@@ -130,3 +151,82 @@ test('validate query language', () =>
 
     })
 );
+
+test('add new filter', () =>
+  new Promise((res, rej) =>
+    request({
+      url: `http://localhost:${config.rest.port}/events/listener`,
+      method: 'POST',
+      json: {
+        callback: `http://localhost:${config.rest.port + 1}${ctx.express.test_route}`,
+        event: 'transfer',
+        filter: {
+          to: ctx.accounts[1],
+          symbol: helpers.bytes32('TIME')
+        }
+      }
+    }, (err, resp) => {
+      err || resp.statusCode !== 200 ? rej(err) : res()
+    })
+  )
+);
+
+test('add TIME Asset', () => {
+  return ctx.contracts_instances.AssetsManager.addAsset(
+    ctx.contracts_instances.ChronoBankAssetProxy.address, 'TIME', ctx.accounts[0], {
+      from: ctx.accounts[0],
+      gas: 3000000
+    })
+    .then(result => {
+      expect(result).toBeDefined();
+      expect(result.tx).toBeDefined();
+      return Promise.resolve();
+    });
+});
+
+test('validate callback on transfer event', () => {
+
+  return Promise.all([
+    ctx.contracts_instances.AssetsManager.sendAsset(
+      helpers.bytes32('TIME'), ctx.accounts[1], 100, {
+        from: ctx.accounts[0],
+        gas: 3000000
+      }),
+    new Promise(resolve => {
+      ctx.express.app.post(ctx.express.test_route, (req, res) => {
+        expect(req.body.to).toEqual(ctx.accounts[1]);
+        expect(req.body.symbol).toEqual(helpers.bytes32('TIME'));
+        resolve();
+        res.send();
+      });
+    })
+  ]);
+});
+
+
+test('remove filter', () => {
+
+  let listener = {
+    callback: `http://localhost:${config.rest.port + 1}${ctx.express.test_route}`,
+    event: 'transfer',
+    filter: {
+      to: ctx.accounts[1],
+      symbol: helpers.bytes32('TIME')
+    }
+  };
+
+  return new Promise((res, rej) =>
+    request({
+      url: `http://localhost:${config.rest.port}/events/listener`,
+      method: 'DELETE',
+      json: {
+        id: `${ctx.web3.sha3(listener.callback)}:${ctx.web3.sha3(listener.event)}:${ctx.web3.sha3(JSON.stringify(listener.filter))}`
+      }
+    }, (err, resp) => {
+      err || resp.statusCode !== 200 ? rej(err) : res(resp.body)
+    })
+  )
+    .then(response=>{
+      expect(response.success).toEqual(true);
+    })
+});

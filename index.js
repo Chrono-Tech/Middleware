@@ -73,7 +73,7 @@ let network = process.env.network;
 Promise.all([
   contractsCtrl(network),
   blockModel.findOne({network: network}).sort('-block'),
-  accountModel.find({network: network})
+  accountModel.find({})
 ])
   .spread((contracts_ctx, currentBlock, accounts) => {
 
@@ -87,89 +87,117 @@ Promise.all([
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
-    let event_ctx = eventsCtrl(contract_instances, contracts_ctx.web3);
+    let event_ctx = eventsCtrl(contracts);
     let eventModels = event_ctx.eventModels;
     let eventEmitter = new emitter();
 
     log.info(`search from block:${currentBlock} for network:${network}`);
     let txService = listenTxsFromBlockIPCService(network);
-    let blockDelay = _.throttle(() => {
-      log.info('reached limit...');
-      txService.events.emit('getBlock');
-    }, 10000);
+
+    let fetcher = () =>
+      new Promise(res => {
+        txService.events.emit('getBlock');
+        txService.events.once('block', block => {
+          res(block);
+        });
+      })
+        .then(block => {
+
+          if (block === -1)
+            return Promise.reject({code: 1});
+
+          if (block < currentBlock)
+            return Promise.reject({code: 0});
+
+          txService.events.emit('getTxs', currentBlock++);
+
+          return new Promise((resolve, reject) => {
+            txService.events.once('txs', (txs) => {
+              if (!txs || _.isEmpty(txs))
+                return reject({code: 2});
+              resolve(txs);
+            });
+          });
+        })
+        .then((txs) =>
+          Promise.map(txs, tx => {
+            return parseInt(tx.value) > 0 ?
+              tx : new Promise(res => {
+                txService.events.emit('getTxReceipt', tx);
+                txService.events.once('txReceipt', res);
+              });
+          }, {concurrency: 1})
+        )
+        .then(txs =>
+          aggregateTxsByBlockService(txs,
+            [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
+            event_ctx.signatures,
+            accounts,
+            network
+          )
+        )
+        .then((res) => {
+          return Promise.all(
+            _.chain(res)
+              .get('events')
+              .map(ev =>
+                ev.event === 'NewUserRegistered' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+                  .then(() => new accountModel({network: network, address: ev.args.key}).save())
+                  .then(() => accounts.push(ev.args.key)) :
+                  new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+              )
+              .union([transactionModel.insertMany(res.txs)])
+              .value()
+          )
+            .then(() => {
+              _.chain(res)
+                .get('events')
+                .forEach(ev => {
+                  eventEmitter.emit(ev.event, ev.args);
+                })
+                .value();
+            });
+        })
+        .then(() =>
+          blockModel.findOneAndUpdate({network: network}, {
+            block: currentBlock,
+            created: Date.now()
+          }, {upsert: true})
+        )
+        .delay(10)
+        .then(() => {
+          fetcher();
+        })
+        .catch(err => {
+          if (![0, 1, 2, 11000].includes(_.get(err, 'code')))
+            --currentBlock;
+
+          if (_.get(err, 'code') === 0)
+            log.info(`await for next block ${currentBlock}`);
+
+          if (_.get(err, 'code') === 1)
+            log.info(`found a broken block ${currentBlock}`);
+
+          _.get(err, 'code') === 0 ?
+            setTimeout(fetcher, 10000) :
+            fetcher();
+        });
 
     txService.events.on('connected', () => {
-
-      txService.events.emit('getBlock');
-      txService.events.on('block', block => {
-        block && block >= currentBlock ?
-          txService.events.emit('getTxs', currentBlock++) :
-          blockDelay();
-      });
-
-      txService.events.on('txs', (txs) => {
-        if (!txs || _.isEmpty(txs)) {
-          return txService.events.emit('getBlock');
-        }
-
-        let res = aggregateTxsByBlockService(txs,
-          [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
-          event_ctx.signatures,
-          accounts
-        );
-
-        Promise.all(
-          _.chain(res.events)
-            .map(ev =>
-              ev.event === 'NewUserRegistered' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-                .then(() => new accountModel({network: network, address: ev.args.key}).save())
-                .then(() => accounts.push(ev.args.key)) :
-                new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-            )
-            .union([transactionModel.insertMany(res.txs)])
-            .value()
-        )
-          .timeout(1000)
-          .then(() => { //todo optimise
-            _.forEach(res.events, ev => {
-              eventEmitter.emit(ev.event, ev.args);
-            });
-
-            txService.events.emit('getBlock');
-          })
-          .catch(err => {
-            if (_.get(err, 'code') !== 11000) {
-              --currentBlock;
-              log.info(err.code);
-            }
-
-            return Promise.resolve();
-          })
-          .then(() =>
-            blockModel.findOneAndUpdate({network: network}, {
-              block: currentBlock,
-              created: Date.now()
-            }, {upsert: true})
-          )
-          .then(() => {
-            txService.events.emit('getBlock');
-          })
-          .catch(err => {
-            log.info(err);
-          });
-      });
-
+      fetcher();
     });
 
-    //register plugins
+//register plugins
     _.chain(plugins).values()
       .forEach(plugin => plugin({
         events: eventEmitter,
         contracts_instances: contract_instances,
         eventModels: eventModels,
         contracts: contracts,
-        network: network
+        network: network,
+        users: accounts
       }))
       .value();
 
-  });
+  })
+;

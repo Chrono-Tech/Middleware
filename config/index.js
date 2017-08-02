@@ -40,6 +40,7 @@ module.exports = {
     uri: process.env.MONGO_URI || 'mongodb://localhost:27017/data'
   },
   rest: {
-    port: process.env.REST_PORT || 8081
+    domain: process.env.DOMAIN || 'localhost',
+    port: parseInt(process.env.REST_PORT) || 8081
   }
 };

@@ -18,7 +18,7 @@ const Web3 = require('web3'),
 module.exports = (network) => {
   
   const instances = {},
-    provider = new Web3.providers.IpcProvider(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}_geth.ipc`, net);
+    provider = new Web3.providers.IpcProvider(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, net);
   const web3 = new Web3(),
     contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
       dirname: path.join(__dirname, '../node_modules', 'chronobank-smart-contracts/build/contracts'),

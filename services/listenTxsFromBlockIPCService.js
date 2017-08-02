@@ -1,74 +1,84 @@
 const net = require('net'),
   _ = require('lodash'),
-  bunyan = require('bunyan'),
-  log = bunyan.createLogger({name: 'services.listenTxsFromBlockIPCService'}),
   EventEmitter = require('events');
 
 module.exports = (network) => {
 
   let emitter = new EventEmitter();
-  let latestBlock;
-  let blockWithTx;
-  let delayResolver = _.debounce(() => {
-    emitter.emit('txs', []);
-  }, 2000);
+  let ctx = {
+    status: 0,
+    wrong_count: 0
+  };
 
-  let delayBlockResolver = _.debounce(() => {
-    emitter.emit('block', null);
-  }, 1000);
+  let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, () => {
 
+    let reply = (data) => {
 
-  let client = net.createConnection(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}_geth.ipc`, () => {
+      if (ctx.status === 0)
+        return emitter.emit('block', parseInt(_.get(data, 'result', -1), 16));
+
+      if (ctx.status === 1)
+        return emitter.emit('txs', _.get(data, 'result.transactions', []));
+
+      if (ctx.status === 2)
+        return emitter.emit('txReceipt', _.get(data, 'result', {}));
+    };
+
+    let timeout = _.debounce(reply, 1000);
 
     emitter.on('getBlock', () => {
-      latestBlock = null;
+      ctx.status = 0;
+      client.resume();
+      timeout();
       client.write('{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}');//get latest block
-      delayBlockResolver();
     });
 
     emitter.on('getTxs', block => {
-      blockWithTx = null;
+      ctx.status = 1;
+      ctx.block = block;
+      client.resume();
+      timeout();
       client.write(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x${(block).toString(16)}", true], "id":1}`);
-      delayResolver(block);
+    });
+
+    emitter.on('getTxReceipt', tx => {
+      ctx.status = 2;
+      ctx.tx = tx;
+      client.resume();
+      timeout();
+      client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`);
     });
 
     emitter.emit('connected');
 
     client.on('data', (data) => {
+
+      timeout.cancel();
+      client.pause();
       try {
         data = JSON.parse(data);
       } catch (e) {
-        log.error(e);
-      }
 
-      if (_.get(data, 'result.transactions', []).length > 0 && !blockWithTx) {
-        blockWithTx = data.result;
-        data.result.transactions.forEach(tx =>
-          client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${tx.hash}"],"id":1}`)
-        );
-        return;
-      }
-
-      //if (_.has(data, 'result.logs') && blockWithTx) {
-      if (_.has(data, 'result.transactionHash') && blockWithTx) {
-        let index = _.findIndex(blockWithTx.transactions, {hash: data.result.transactionHash});
-        _.merge(blockWithTx.transactions[index], data.result);
-
-        if (index === -1)
-          return emitter.emit('txs', []);
-
-        if (index === blockWithTx.transactions.length - 1) {
-          emitter.emit('txs', blockWithTx.transactions);
-          delayResolver.cancel();
+        if (ctx.wrong_count > 5) {
+          ctx.wrong_count = 0;
+          return reply();
         }
 
-        return;
+        ctx.wrong_count++;
+        client.resume();
+
+        if (ctx.status === 0)
+          return client.write('{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}');
+
+        if (ctx.status === 1)
+          return client.write(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x${(ctx.block).toString(16)}", true], "id":1}`);
+
+        if (ctx.status === 2)
+          return client.write(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["${ctx.tx.hash}"],"id":1}`);
+
       }
 
-      if (!latestBlock) {
-        latestBlock = parseInt(data.result, 16);
-        return emitter.emit('block', latestBlock);
-      }
+      reply(data);
 
     });
 

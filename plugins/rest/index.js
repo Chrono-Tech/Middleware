@@ -1,11 +1,15 @@
 const express = require('express'),
   _ = require('lodash'),
   app = express(),
-  collectionRouter = express.Router(),
-  bunyan = require('bunyan'),
-  config = require('../../config'),
-  log = bunyan.createLogger({name: 'plugins.rest'}),
-  q2mb = require('query-to-mongo-and-back');
+  cors = require('cors'),
+  bodyParser = require('body-parser'),
+  path = require('path'),
+  require_all = require('require-all'),
+  routes = require_all({
+    dirname: path.join(__dirname, 'routes'),
+    filter: /(.+Route)\.js$/
+  }),
+  config = require('../../config');
 
 /**
  * @module rest
@@ -21,6 +25,9 @@ const express = require('express'),
 
 module.exports = (ctx) => {
 
+  app.use(cors());
+  app.use(bodyParser.urlencoded({extended: false}));
+  app.use(bodyParser.json());
 
   app.get('/', (req, res) => {
     res.send({
@@ -28,32 +35,7 @@ module.exports = (ctx) => {
     });
   });
 
-  //return all available collections to user
-  collectionRouter.get('/', (req, res) => {
-    res.send(Object.keys(ctx.eventModels));
-  });
-
-  //register each event in express by its name
-  _.forEach(ctx.eventModels, (model, name) => {
-    collectionRouter.get(`/${name}`, (req, res) => {
-      //convert query request to mongo's
-      let q = q2mb.fromQuery(req.query);
-      //retrieve all records, which satisfy the query
-      model.find(q.criteria, q.options.fields)
-        .sort(q.options.sort)
-        .limit(q.options.limit)
-        .then(result => {
-          res.send(result);
-        })
-        .catch(err => {
-          log.error(err);
-          res.send([]);
-        });
-    });
-  });
-
-  //register all events under namespace 'events'
-  app.use('/events', collectionRouter);
+  _.forEach(routes, r=> r(app, ctx));
 
   app.listen(config.rest.port || 8080);
 
