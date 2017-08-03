@@ -10,6 +10,14 @@ const q2mb = require('query-to-mongo-and-back'),
   web3 = new Web3(),
   _ = require('lodash');
 
+/**
+ * @function eventsRoute
+ * @description register event's routes
+ * @param app - express instance
+ * @param ctx - context object, exposed from core system to each plugin
+ */
+
+
 module.exports = (app, ctx) => {
 
 
@@ -39,7 +47,7 @@ module.exports = (app, ctx) => {
 
   collectionRouter.post('/listener', (req, res) => {
     let eventListener = new eventListenerModel(
-      _.merge(req.body, {controlIndexHash: `${web3.sha3(req.body.callback)}:${web3.sha3(req.body.event)}:${web3.sha3(JSON.stringify(req.body.filter))}`}));
+      _.merge(req.body, {controlIndexHash: `${web3.sha3(req.body.event)}:${web3.sha3(JSON.stringify(req.body.filter))}`}));
     let error = eventListener.validateSync();
 
     if (error) {
@@ -63,6 +71,9 @@ module.exports = (app, ctx) => {
 
   collectionRouter.delete('/listener', (req, res) => {
 
+    if (!req.body.id)
+      return res.send(messages.fail);
+
     return eventListenerModel.remove({controlIndexHash: req.body.id})
       .then(() => {
         res.send(messages.success);
@@ -78,7 +89,7 @@ module.exports = (app, ctx) => {
     .keys()
     .forEach(event => {
       ctx.events.on(event, data => {
-        eventEmitterService(event, ctx.eventModels[event], data);
+        eventEmitterService(event, ctx, data);
       });
     })
     .value();

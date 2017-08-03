@@ -3,6 +3,11 @@ const bunyan = require('bunyan'),
   log = bunyan.createLogger({name: 'plugins.rest.routes.transactionsRoute'}),
   q2mb = require('query-to-mongo-and-back');
 
+/**
+ * @function transactionsRoute
+ * @description register transaction's route
+ * @param app - express instance
+ */
 
 module.exports = (app)=>{
 

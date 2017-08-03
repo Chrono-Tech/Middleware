@@ -5,6 +5,7 @@ const mongoose = require('mongoose'),
   transactionModel = require('./models').transactionModel,
   contractsCtrl = require('./controllers').contractsCtrl,
   eventsCtrl = require('./controllers').eventsCtrl,
+  amqpCtrl = require('./controllers').amqpCtrl,
   aggregateTxsByBlockService = require('./services/aggregateTxsByBlockService'),
   emitter = require('events'),
   _ = require('lodash'),
@@ -73,9 +74,10 @@ let network = process.env.network;
 Promise.all([
   contractsCtrl(network),
   blockModel.findOne({network: network}).sort('-block'),
-  accountModel.find({})
+  accountModel.find({}),
+  amqpCtrl()
 ])
-  .spread((contracts_ctx, currentBlock, accounts) => {
+  .spread((contracts_ctx, currentBlock, accounts, amqpEmitter) => {
 
     if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address') || !_.has(contracts_ctx, 'instances.EventsHistory.address')) {
       log.info(`contracts haven't been deployed to network - ${network}`);
@@ -195,7 +197,8 @@ Promise.all([
         eventModels: eventModels,
         contracts: contracts,
         network: network,
-        users: accounts
+        users: accounts,
+        amqpEmitter: amqpEmitter
       }))
       .value();
 

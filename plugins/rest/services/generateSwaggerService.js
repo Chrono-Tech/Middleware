@@ -163,6 +163,11 @@ let body = {
   paths: definition
 };
 
+/**
+ * @factory
+ * @description generated scheme for swagger
+ * @type {{definition: {swagger: string, info: {description: string, version: string, title: string}, host: string, basePath: string, schemes: [*], paths}}}
+ */
 
 module.exports = {
   definition: body

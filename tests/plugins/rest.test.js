@@ -3,6 +3,7 @@ const config = require('../../config'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
   ipfsAPI = require('ipfs-api'),
+  amqp = require('amqplib'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   eventsCtrl = require('../../controllers').eventsCtrl,
   http = require('http'),
@@ -158,7 +159,6 @@ test('add new filter', () =>
       url: `http://localhost:${config.rest.port}/events/listener`,
       method: 'POST',
       json: {
-        callback: `http://localhost:${config.rest.port + 1}${ctx.express.test_route}`,
         event: 'transfer',
         filter: {
           to: ctx.accounts[1],
@@ -192,17 +192,31 @@ test('validate callback on transfer event', () => {
         from: ctx.accounts[0],
         gas: 3000000
       }),
-    new Promise(resolve => {
-      ctx.express.app.post(ctx.express.test_route, (req, res) => {
-        expect(req.body.to).toEqual(ctx.accounts[1]);
-        expect(req.body.symbol).toEqual(helpers.bytes32('TIME'));
-        resolve();
-        res.send();
-      });
-    })
-  ]);
-});
+    /*
+     amqp.connect(config.rabbit.url)
+     .then(conn => conn.createChannel())
+     */
 
+    amqp.connect(config.rabbit.url)
+      .then(conn =>
+        conn.createChannel()
+          .then(ch => {
+
+            let tx = `${ctx.web3.sha3('transfer')}:${ctx.web3.sha3(JSON.stringify({
+              to: ctx.accounts[1],
+              symbol: helpers.bytes32('TIME')
+            }))}`;
+
+            return ch.assertQueue(`events:${tx}`, {durable: true})
+              .then(() => {
+                ch.consume(`events:${tx}`, msg => {
+                  console.log(msg.content.toString());
+                }, {noAck: false});
+              });
+          })
+      )
+  ])
+});
 
 test('remove filter', () => {
 
@@ -226,7 +240,7 @@ test('remove filter', () => {
       err || resp.statusCode !== 200 ? rej(err) : res(resp.body)
     })
   )
-    .then(response=>{
+    .then(response => {
       expect(response.success).toEqual(true);
     })
 });

@@ -8,8 +8,6 @@ const _ = require('lodash'),
  * @module events Controller
  * @description initialize all events for smartContracts,
  * @param contracts - instances of smartContracts
- * @param web3 - initialized web3 instance
- * and prepare collections in mongo for them
  * @returns {{eventModels, signatures}}
  */
 
