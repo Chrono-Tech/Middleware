@@ -4,6 +4,8 @@ const express = require('express'),
   cors = require('cors'),
   bodyParser = require('body-parser'),
   path = require('path'),
+  eventEmitterService = require('./services/events/eventsEmitterService'),
+  eventsConsumerRegistrationService = require('./services/events/eventsConsumerRegistrationService'),
   require_all = require('require-all'),
   routes = require_all({
     dirname: path.join(__dirname, 'routes'),
@@ -36,6 +38,18 @@ module.exports = (ctx) => {
   });
 
   _.forEach(routes, r=> r(app, ctx));
+
+
+  eventsConsumerRegistrationService(ctx);
+  _.chain(ctx.eventModels)
+    .keys()
+    .forEach(event => {
+      ctx.events.on(event, data => {
+        eventEmitterService(event, ctx, data);
+      });
+    })
+    .value();
+
 
   app.listen(config.rest.port || 8080);
 

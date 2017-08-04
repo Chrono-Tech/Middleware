@@ -3,7 +3,6 @@ const q2mb = require('query-to-mongo-and-back'),
   express = require('express'),
   collectionRouter = express.Router(),
   eventListenerModel = require('../models/eventListenerModel'),
-  eventEmitterService = require('../services/eventEmitter/eventEmitterService'),
   log = bunyan.createLogger({name: 'plugins.rest.routes.eventRouter'}),
   messages = require('../../../factories').messages.genericMessageFactory,
   Web3 = require('web3'),
@@ -84,14 +83,5 @@ module.exports = (app, ctx) => {
 
   //register all events under namespace 'events'
   app.use('/events', collectionRouter);
-
-  _.chain(ctx.eventModels)
-    .keys()
-    .forEach(event => {
-      ctx.events.on(event, data => {
-        eventEmitterService(event, ctx, data);
-      });
-    })
-    .value();
 
 };

@@ -13,15 +13,30 @@ const _ = require('lodash'),
 
 class AmqpController {
 
-  constructor(channel) {
-    this.channel = channel;
+  constructor(connection) {
+    this.connection = connection;
+  }
+
+  createChannel() {
+    return this.connection.createChannel()
+      .then(ch => {
+        this.channel = ch;
+
+        ch.on('error', () => {
+        });
+
+        return ch;
+      });
   }
 
   on(event, callback) {
     let consumerTag = (+new Date()).toString();
     this.channel.assertQueue(event, {durable: true})
       .then(() => {
-        this.channel.consume(event, data => callback(data.toString()), {noAck: false, consumerTag: consumerTag});
+        this.channel.consume(event, data => callback(data.content.toString()), {
+          noAck: false,
+          consumerTag: consumerTag
+        });
       });
   }
 
@@ -40,6 +55,8 @@ class AmqpController {
 
 module.exports = () => {
   return amqp.connect(config.rabbit.url)
-    .then(conn => conn.createChannel())
-    .then(ch => new AmqpController(ch));
+    .then(conn => new AmqpController(conn))
+    .then(instance => instance.createChannel()
+      .then(() => instance)
+    );
 };

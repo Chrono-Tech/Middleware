@@ -7,19 +7,14 @@ const config = require('../../config'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   eventsCtrl = require('../../controllers').eventsCtrl,
   http = require('http'),
-  express = require('express'),
   mongoose = require('mongoose'),
   request = require('request'),
-  bodyParser = require('body-parser'),
   moment = require('moment'),
   ctx = {
     events: {},
     contracts_instances: {},
     factory: {},
     contracts: {},
-    express: {
-      app: express()
-    },
     web3: null
   };
 
@@ -30,12 +25,8 @@ beforeAll(() => {
     .then((data) => {
       ctx.contracts_instances = data.instances;
       ctx.contracts = data.contracts;
-      ctx.events = eventsCtrl(data.instances, data.web3);
+      ctx.events = eventsCtrl(data.instances);
       ctx.web3 = data.web3;
-      ctx.express.server = http.createServer(ctx.express.app);
-      ctx.express.test_route = `/test/${+new Date()}`;
-      ctx.express.app.use(bodyParser.urlencoded({extended: false}));
-      ctx.express.app.use(bodyParser.json());
 
       return new Promise(res => {
         ctx.web3.eth.getAccounts((err, result) => res(result));
@@ -43,30 +34,24 @@ beforeAll(() => {
     })
     .then(accounts => {
       ctx.accounts = accounts;
-      return Promise.all([
-        new Promise(res =>
-          ctx.express.server.listen(config.rest.port + 1, res)
-        ),
-        mongoose.connect(config.mongo.uri)
-      ])
+      return mongoose.connect(config.mongo.uri)
     })
     .then(() => helpers.awaitLastBlock(ctx))
 });
 
 afterAll(() => {
   ctx.web3.currentProvider.connection.end();
-  ctx.express.server.close();
   return mongoose.disconnect();
 });
 
 test('validate all routes', () =>
   Promise.all(
     _.map(ctx.events.eventModels, (model, name) =>
-      new Promise((res, rej) =>
+      new Promise((res, rej) => {
         request(`http://localhost:${config.rest.port}/events/${name}`, (err, resp) => {
           err || resp.statusCode !== 200 ? rej(err) : res()
         })
-      )
+      })
     )
   )
 );
@@ -192,11 +177,6 @@ test('validate callback on transfer event', () => {
         from: ctx.accounts[0],
         gas: 3000000
       }),
-    /*
-     amqp.connect(config.rabbit.url)
-     .then(conn => conn.createChannel())
-     */
-
     amqp.connect(config.rabbit.url)
       .then(conn =>
         conn.createChannel()
@@ -221,7 +201,6 @@ test('validate callback on transfer event', () => {
 test('remove filter', () => {
 
   let listener = {
-    callback: `http://localhost:${config.rest.port + 1}${ctx.express.test_route}`,
     event: 'transfer',
     filter: {
       to: ctx.accounts[1],
@@ -234,7 +213,7 @@ test('remove filter', () => {
       url: `http://localhost:${config.rest.port}/events/listener`,
       method: 'DELETE',
       json: {
-        id: `${ctx.web3.sha3(listener.callback)}:${ctx.web3.sha3(listener.event)}:${ctx.web3.sha3(JSON.stringify(listener.filter))}`
+        id: `${ctx.web3.sha3(listener.event)}:${ctx.web3.sha3(JSON.stringify(listener.filter))}`
       }
     }, (err, resp) => {
       err || resp.statusCode !== 200 ? rej(err) : res(resp.body)

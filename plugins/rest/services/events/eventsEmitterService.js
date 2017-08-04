@@ -18,9 +18,10 @@ module.exports = (ev, ctx, data) => {
           .filter(listener =>
             _.isEqual(listener.filter, _.pick(data, _.keys(listener.filter)))
           )
-          .map(listener =>
-            ctx.amqpEmitter.emit(`events:${listener.controlIndexHash}`, data)
-          )
+          .map(listener => {
+            console.log('event', `events:${listener.controlIndexHash}`);
+            ctx.amqpEmitter.channel.publish(`events:${listener.controlIndexHash}`, '', Buffer.from(JSON.stringify(data)))
+          })
           .value()
       )
     )
