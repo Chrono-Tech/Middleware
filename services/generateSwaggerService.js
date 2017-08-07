@@ -1,11 +1,11 @@
 const require_all = require('require-all'),
   path = require('path'),
   _ = require('lodash'),
-  config = require('../../../config'),
-  transactionModel = require('../../../models/transactionModel'),
-  accountModel = require('../../../models/accountModel'),
+  config = require('../config'),
+  transactionModel = require('../models/transactionModel'),
+  accountModel = require('../models/accountModel'),
   contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
-    dirname: path.join(__dirname, '../../../node_modules', 'chronobank-smart-contracts/build/contracts'),
+    dirname: path.join(__dirname, '../node_modules', 'chronobank-smart-contracts/build/contracts'),
     filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/
   });
 

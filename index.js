@@ -2,18 +2,21 @@ const mongoose = require('mongoose'),
   config = require('./config'),
   blockModel = require('./models').blockModel,
   accountModel = require('./models').accountModel,
-  transactionModel = require('./models').transactionModel,
   contractsCtrl = require('./controllers').contractsCtrl,
   eventsCtrl = require('./controllers').eventsCtrl,
   amqpCtrl = require('./controllers').amqpCtrl,
-  aggregateTxsByBlockService = require('./services/aggregateTxsByBlockService'),
+  routes = require('./routes'),
   emitter = require('events'),
+  express = require('express'),
+  cors = require('cors'),
+  bodyParser = require('body-parser'),
   _ = require('lodash'),
   plugins = require('./plugins'),
   bunyan = require('bunyan'),
   log = bunyan.createLogger({name: 'app'}),
   Promise = require('bluebird'),
   listenTxsFromBlockIPCService = require('./services/listenTxsFromBlockIPCService'),
+  blockProcessService = require('./services/blockProcessService'),
   cluster = require('cluster');
 
 /**
@@ -71,6 +74,7 @@ mongoose.connect(config.mongo.uri);
 let network = process.env.network;
 
 //init contracts on the following network and fetch the latest block for this network from mongo
+
 Promise.all([
   contractsCtrl(network),
   blockModel.findOne({network: network}).sort('-block'),
@@ -79,7 +83,7 @@ Promise.all([
 ])
   .spread((contracts_ctx, currentBlock, accounts, amqpEmitter) => {
 
-    if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address') || !_.has(contracts_ctx, 'instances.EventsHistory.address')) {
+    if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address')/* || !_.has(contracts_ctx, 'instances.EventsHistory.address')*/) {
       log.info(`contracts haven't been deployed to network - ${network}`);
       log.info('restart process in one hour...');
       return setTimeout(() => process.exit(1), 3600 * 1000);
@@ -90,86 +94,15 @@ Promise.all([
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
     let event_ctx = eventsCtrl(contracts);
-    let eventModels = event_ctx.eventModels;
     let eventEmitter = new emitter();
+    let app = express();
 
     log.info(`search from block:${currentBlock} for network:${network}`);
     let txService = listenTxsFromBlockIPCService(network);
 
-    let fetcher = () =>
-      new Promise(res => {
-        txService.events.emit('getBlock');
-        txService.events.once('block', block => {
-          res(block);
-        });
-      })
-        .then(block => {
-
-          if (block === -1)
-            return Promise.reject({code: 1});
-
-          if (block < currentBlock)
-            return Promise.reject({code: 0});
-
-          txService.events.emit('getTxs', currentBlock++);
-
-          return new Promise((resolve, reject) => {
-            txService.events.once('txs', (txs) => {
-              if (!txs || _.isEmpty(txs))
-                return reject({code: 2});
-              resolve(txs);
-            });
-          });
-        })
-        .then((txs) =>
-          Promise.map(txs, tx => {
-            return parseInt(tx.value) > 0 ?
-              tx : new Promise(res => {
-                txService.events.emit('getTxReceipt', tx);
-                txService.events.once('txReceipt', res);
-              });
-          }, {concurrency: 1})
-        )
-        .then(txs =>
-          aggregateTxsByBlockService(txs,
-            [contract_instances.MultiEventsHistory.address, contract_instances.EventsHistory.address],
-            event_ctx.signatures,
-            accounts,
-            network
-          )
-        )
-        .then((res) => {
-          return Promise.all(
-            _.chain(res)
-              .get('events')
-              .map(ev =>
-                ev.event === 'NewUserRegistered' ? new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-                  .then(() => new accountModel({network: network, address: ev.args.key}).save())
-                  .then(() => accounts.push(ev.args.key)) :
-                  new eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-              )
-              .union([transactionModel.insertMany(res.txs)])
-              .value()
-          )
-            .then(() => {
-              _.chain(res)
-                .get('events')
-                .forEach(ev => {
-                  eventEmitter.emit(ev.event, ev.args);
-                })
-                .value();
-            });
-        })
-        .then(() =>
-          blockModel.findOneAndUpdate({network: network}, {
-            block: currentBlock,
-            created: Date.now()
-          }, {upsert: true})
-        )
-        .delay(10)
-        .then(() => {
-          fetcher();
-        })
+    let process = () => {
+      return blockProcessService(txService, currentBlock++, contract_instances, event_ctx, eventEmitter, accounts, network)
+        .then(() => process())
         .catch(err => {
           if (![0, 1, 2, 11000].includes(_.get(err, 'code')))
             --currentBlock;
@@ -181,26 +114,36 @@ Promise.all([
             log.info(`found a broken block ${currentBlock}`);
 
           _.get(err, 'code') === 0 ?
-            setTimeout(fetcher, 10000) :
-            fetcher();
+            setTimeout(process, 10000) :
+            process();
         });
+    };
 
-    txService.events.on('connected', () => {
-      fetcher();
-    });
+    txService.events.on('connected', process);
+
+    let ctx = {
+      events: eventEmitter,
+      contracts_instances: contract_instances,
+      eventModels: event_ctx.eventModels,
+      contracts: contracts,
+      network: network,
+      users: accounts,
+      amqpEmitter: amqpEmitter,
+      express: app
+    };
+
+    app.use(cors());
+    app.use(bodyParser.urlencoded({extended: false}));
+    app.use(bodyParser.json());
+
+    routes(ctx);
+
+    app.listen(config.rest.port || 8080);
 
 //register plugins
+
     _.chain(plugins).values()
-      .forEach(plugin => plugin({
-        events: eventEmitter,
-        contracts_instances: contract_instances,
-        eventModels: eventModels,
-        contracts: contracts,
-        network: network,
-        users: accounts,
-        amqpEmitter: amqpEmitter
-      }))
+      .forEach(plugin => plugin(ctx))
       .value();
 
-  })
-;
+  });

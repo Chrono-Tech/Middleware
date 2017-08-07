@@ -1,7 +1,7 @@
 const _ = require('lodash'),
   bunyan = require('bunyan'),
   Promise = require('bluebird'),
-  eventListenerModel = require('../../models/eventListenerModel'),
+  eventListenerModel = require('../models/eventListenerModel'),
   log = bunyan.createLogger({name: 'plugins.rest.services.eventEmitter.eventEmitterService'});
 /**
  * @module scheduleService
@@ -20,7 +20,7 @@ module.exports = (ev, ctx, data) => {
           )
           .map(listener => {
             console.log('event', `events:${listener.controlIndexHash}`);
-            ctx.amqpEmitter.channel.publish(`events:${listener.controlIndexHash}`, '', Buffer.from(JSON.stringify(data)))
+            ctx.amqpEmitter.publish(`events:${listener.controlIndexHash}`, '', Buffer.from(JSON.stringify(data)))
           })
           .value()
       )

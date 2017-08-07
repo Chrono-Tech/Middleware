@@ -8,9 +8,9 @@ const generateSwaggerService = require('../services/generateSwaggerService');
  */
 
 
-module.exports = (app) => {
+module.exports = (ctx, router) => {
 
-  app.get('/swagger', (req, res) => {
+  router.get('/', (req, res) => {
     res.send(generateSwaggerService.definition);
   });
 

@@ -15,8 +15,8 @@ const Web3 = require('web3'),
  * @returns {Promise|Promise.<{instances, contracts, web3}>}
  */
 
-module.exports = (network) => {
-  
+module.exports = async(network) => {
+
   const instances = {},
     provider = new Web3.providers.IpcProvider(`${/^win/.test(process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${network}/geth.ipc`, net);
   const web3 = new Web3(),
@@ -33,16 +33,17 @@ module.exports = (network) => {
 
   web3.setProvider(provider);
   //get instances and build object {contract_name: instance}
-  return Promise.each(
+  await Promise.each(
     _.values(contracts),
     contract =>
       contract.deployed()
         .then(instance => {
           return _.set(instances, contract.toJSON().contract_name, instance);
-        }).catch((e) => {log.debug(e);})
+        }).catch((e) => {
+        log.debug(e);
+      })
   )
-    .then(() =>
-      Promise.resolve({instances, contracts, web3})
-    )
-    .catch(err => log.error(err));
+
+  return {instances, contracts, web3};
+
 };
