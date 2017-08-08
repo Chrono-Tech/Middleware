@@ -1,8 +1,6 @@
 const _ = require('lodash'),
   bunyan = require('bunyan'),
-  Promise = require('bluebird'),
   eventListenerModel = require('../models/eventListenerModel'),
-  amqpCtrl = require('../models/eventListenerModel'),
   log = bunyan.createLogger({name: 'plugins.rest.services.eventEmitter.eventEmitterService'});
 /**
  * @module scheduleService
@@ -12,7 +10,9 @@ const _ = require('lodash'),
 
 module.exports = async (ctx) => {
 
-  ctx.amqpEmitter.on('events:register', data => {//todo reassign on fail
+  let instance = await ctx.amqpEmitter.queue('events:register');
+
+  instance.on(data => {//todo reassign on fail
     let payload = JSON.parse(data);
 
     let ex = `events:${payload.id}`;
@@ -20,7 +20,7 @@ module.exports = async (ctx) => {
     let channel_id = `${ex}.${payload.client}`;
 
 
-    ctx.amqpEmitter.createExchange(ex, channel_id);
+    ctx.amqpEmitter.exchange(ex, channel_id);
 
   });
 

@@ -105,7 +105,7 @@ Promise.all([
         .then(() => process())
         .catch(err => {
           if (![0, 1, 2, 11000].includes(_.get(err, 'code')))
-            --currentBlock;
+            currentBlock = currentBlock - 2;
 
           if (_.get(err, 'code') === 0)
             log.info(`await for next block ${currentBlock}`);
@@ -114,7 +114,10 @@ Promise.all([
             log.info(`found a broken block ${currentBlock}`);
 
           _.get(err, 'code') === 0 ?
-            setTimeout(process, 10000) :
+            setTimeout(() => {
+              currentBlock--;
+              process();
+            }, 10000) :
             process();
         });
     };
