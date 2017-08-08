@@ -92,7 +92,7 @@ Promise.all([
     accounts = _.map(accounts, a => a.address);
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
-    currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
+    currentBlock = _.chain(currentBlock).get('block', 0).add(1).value();
     let event_ctx = eventsCtrl(contracts);
     let eventEmitter = new emitter();
     let app = express();

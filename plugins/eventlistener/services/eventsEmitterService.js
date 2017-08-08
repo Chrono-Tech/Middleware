@@ -9,24 +9,18 @@ const _ = require('lodash'),
  * @see {@link ../../../config.json}
  */
 
-module.exports = (ev, ctx, data) => {
+module.exports = async(ev, ctx, data) => {
 
-  eventListenerModel.find({event: ev.toLowerCase()})
-    .then(listeners =>
-      Promise.all(
-        _.chain(listeners)
-          .filter(listener =>
-            _.isEqual(listener.filter, _.pick(data, _.keys(listener.filter)))
-          )
-          .map(listener => {
-            console.log('event', `events:${listener.controlIndexHash}`);
-            ctx.amqpEmitter.publish(`events:${listener.controlIndexHash}`, '', Buffer.from(JSON.stringify(data)))
-          })
-          .value()
-      )
+  let listeners = await eventListenerModel.find({event: ev.toLowerCase()})
+
+  _.chain(listeners)
+    .filter(listener =>
+      _.isEqual(listener.filter, _.pick(data, _.keys(listener.filter)))
     )
-    .catch(err => {
-      log.error(err);
-    });
+    .map(listener => {
+      console.log('event', `events:${listener.controlIndexHash}`);
+      ctx.amqpEmitter.publish(`events:${listener.controlIndexHash}`, data);
+    })
+    .value()
 
 };

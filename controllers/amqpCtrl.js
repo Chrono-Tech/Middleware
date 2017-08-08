@@ -57,12 +57,13 @@ module.exports = async() => {
     return await Promise.some([
       errorPromise,
       successPromise,
-      f()
+      Promise.resolve(f())
         .then((data) => {
           eventEmitter.emit('done');
           return data;
         })
-        .catch(() => {})
+        .catch(() => {
+        })
     ], 2)
   };
 
@@ -98,12 +99,11 @@ module.exports = async() => {
   let exchange = async(ex, channel_id) => {
     await channelWrapper(channel.assertExchange.bind(channel, ex, 'fanout'));
     await channelWrapper(channel.assertQueue.bind(channel, channel_id, {exclusive: true}));
-    console.log('test')
     return await channelWrapper(channel.bindQueue.bind(channel, channel_id, ex, ''));
   };
 
-  let publish = () => {
-    channel.publish(`events:${listener.controlIndexHash}`, '', Buffer.from(JSON.stringify(data)))
+  let publish = async(ex, data) => {
+    await channelWrapper(channel.publish.bind(channel, ex, '', Buffer.from(JSON.stringify(data))));
   };
 
   return {queue, exchange, publish}

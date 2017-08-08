@@ -37,7 +37,7 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
       });
   }, {concurrency: 1});
 
-  let res = await aggregateTxsByBlockService(txs,
+  let res = aggregateTxsByBlockService(txs,
     [contract_instances.MultiEventsHistory.address, /*contract_instances.EventsHistory.address*/],
     event_ctx.signatures,
     accounts,
@@ -55,7 +55,8 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
       )
       .union([transactionModel.insertMany(res.txs)])
       .value()
-  );
+  ).catch(() => {
+  });
 
   _.chain(res)
     .get('events')
@@ -65,8 +66,10 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
     .value();
 
   await blockModel.findOneAndUpdate({network: network}, {
-    block: currentBlock,
-    created: Date.now()
+    $set: {
+      block: currentBlock,
+      created: Date.now()
+    }
   }, {upsert: true});
 
   return Promise.resolve();
