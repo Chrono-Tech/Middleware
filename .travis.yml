@@ -24,9 +24,9 @@ install:
 
 before_script:
     - ipfs daemon > /dev/null &
-    - npm run testrpc
+    - npm run testrpc > /dev/null &
     - sleep 5 && npm run prepare_linux_install
-    - node . > /dev/null &
+    - node . 
 
 script:
   - sleep 120 && npm test -- --coverage
