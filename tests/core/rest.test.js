@@ -18,23 +18,20 @@ const config = require('../../config'),
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 90000;
 
-beforeAll(() => {
-  return contractsCtrl('development')
-    .then((data) => {
-      ctx.contracts_instances = data.instances;
-      ctx.contracts = data.contracts;
-      ctx.events = eventsCtrl(data.instances);
-      ctx.web3 = data.web3;
+beforeAll(async() => {
+  let data = await contractsCtrl('development');
 
-      return new Promise(res => {
-        ctx.web3.eth.getAccounts((err, result) => res(result));
-      });
-    })
-    .then(accounts => {
-      ctx.accounts = accounts;
-      return mongoose.connect(config.mongo.uri)
-    })
-    .then(() => helpers.awaitLastBlock(ctx))
+  ctx.contracts_instances = data.instances;
+  ctx.contracts = data.contracts;
+  ctx.events = eventsCtrl(data.instances);
+  ctx.web3 = data.web3;
+
+  ctx.accounts = await new Promise(res => {
+    ctx.web3.eth.getAccounts((err, result) => res(result));
+  });
+
+  mongoose.connect(config.mongo.uri);
+  return await helpers.awaitLastBlock(ctx);
 });
 
 afterAll(() => {
@@ -54,7 +51,7 @@ test('validate all routes', () =>
   )
 );
 
-test('add new loc', () => {
+test('add new loc', async() => {
 
   const obj = {
     Data: new Buffer(helpers.generateRandomString()),
@@ -62,76 +59,70 @@ test('add new loc', () => {
   };
   const ipfs_stack = config.nodes.map(node => ipfsAPI(node));
 
-  return Promise.all(
+  let data = await Promise.all(
     _.chain(ipfs_stack)
       .map(ipfs =>
         ipfs.object.put(obj)
       )
       .value()
-  )
-    .then((data) => {
-      ctx.factory.Loc = {
-        name: helpers.bytes32(helpers.generateRandomString()),
-        website: helpers.bytes32("www.ru"),
-        issueLimit: 1000000,
-        hash: helpers.bytes32fromBase58(data[0].toJSON().multihash),
-        expDate: Math.round(+new Date() / 1000),
-        currency: helpers.bytes32('LHT'),
-        created: new Date()
-      };
+  );
 
-      return new Promise(res =>
-        ctx.web3.eth.getCoinbase((err, result) => res(result))
-      );
-    })
-    .then(coinbase =>
-      ctx.contracts_instances.LOCManager.addLOC(
-        ctx.factory.Loc.name,
-        ctx.factory.Loc.website,
-        ctx.factory.Loc.issueLimit,
-        ctx.factory.Loc.hash,
-        ctx.factory.Loc.expDate,
-        ctx.factory.Loc.currency,
-        {from: coinbase}
-      )
-    )
-    .then(result => {
-      expect(result).toBeDefined();
-      expect(result.tx).toBeDefined();
-      expect(result.logs[0].args.locName).toBeDefined();
-      ctx.factory.Loc.encoded_name = result.logs[0].args.locName;
-      return Promise.resolve();
-    })
+  ctx.factory.Loc = {
+    name: helpers.bytes32(helpers.generateRandomString()),
+    website: helpers.bytes32("www.ru"),
+    issueLimit: 1000000,
+    hash: helpers.bytes32fromBase58(data[0].toJSON().multihash),
+    expDate: Math.round(+new Date() / 1000),
+    currency: helpers.bytes32('LHT'),
+    created: new Date()
+  };
+
+  let coinbase = await new Promise(res =>
+    ctx.web3.eth.getCoinbase((err, result) => res(result))
+  );
+
+  let result = await ctx.contracts_instances.LOCManager.addLOC(
+    ctx.factory.Loc.name,
+    ctx.factory.Loc.website,
+    ctx.factory.Loc.issueLimit,
+    ctx.factory.Loc.hash,
+    ctx.factory.Loc.expDate,
+    ctx.factory.Loc.currency,
+    {from: coinbase}
+  );
+
+  expect(result).toBeDefined();
+  expect(result.tx).toBeDefined();
+  expect(result.logs[0].args.locName).toBeDefined();
+  ctx.factory.Loc.encoded_name = result.logs[0].args.locName;
+
 });
 
-test('validate query language', () =>
-  Promise.delay(10000)
-    .then(() =>
-      Promise.all(
-        [
-          `locName=${ctx.factory.Loc.encoded_name}`,
-          `locName!=${ctx.factory.Loc.encoded_name}`,
-          `network=development`,
-          `created<${moment(ctx.factory.Loc.created).add(-5, 'minutes').toISOString()}`
-        ].map((query) =>
-          new Promise((res, rej) =>
-            request(`http://localhost:${config.rest.port}/events/NewLOC?${query}`, (err, resp, body) => {
-              err || resp.statusCode !== 200 ? rej(err) : res(JSON.parse(body))
-            })
-          )
-        )
+test('validate query language', async() => {
+  await Promise.delay(10000);
+
+  let data = await Promise.all(
+    [
+      `locName=${ctx.factory.Loc.encoded_name}`,
+      `locName!=${ctx.factory.Loc.encoded_name}`,
+      `network=development`,
+      `created<${moment(ctx.factory.Loc.created).add(-5, 'minutes').toISOString()}`
+    ].map((query) =>
+      new Promise((res, rej) =>
+        request(`http://localhost:${config.rest.port}/events/NewLOC?${query}`, (err, resp, body) => {
+          err || resp.statusCode !== 200 ? rej(err) : res(JSON.parse(body))
+        })
       )
     )
-    .spread((locName, noLocName, network, created) => {
+  );
 
-      let noItem = _.find(noLocName, {locName: ctx.factory.Loc.encoded_name});
-      let networkItem = _.find(network, {locName: ctx.factory.Loc.encoded_name});
-      let createdItem = _.find(created, {locName: ctx.factory.Loc.encoded_name});
+  let noItem = _.find(data[1], {locName: ctx.factory.Loc.encoded_name});
+  let networkItem = _.find(data[2], {locName: ctx.factory.Loc.encoded_name});
+  let createdItem = _.find(data[3], {locName: ctx.factory.Loc.encoded_name});
 
-      expect(locName[0].locName).toEqual(ctx.factory.Loc.encoded_name);
-      expect(noItem).toBeUndefined();
-      expect(networkItem).toBeDefined();
-      expect(createdItem).toBeUndefined();
+  expect(data[0][0].locName).toEqual(ctx.factory.Loc.encoded_name);
+  expect(noItem).toBeUndefined();
+  expect(networkItem).toBeDefined();
+  expect(createdItem).toBeUndefined();
 
-    })
-);
+});

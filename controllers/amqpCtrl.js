@@ -58,8 +58,7 @@ module.exports = async() => {
           eventEmitter.emit('done');
           return data;
         })
-        .catch(() => {
-        })
+        .catch(() => {})
     ], 2)
   };
 
