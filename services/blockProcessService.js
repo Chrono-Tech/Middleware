@@ -6,7 +6,6 @@ const _ = require('lodash'),
   aggregateTxsByBlockService = require('./aggregateTxsByBlockService');
 
 module.exports = async(txService, currentBlock, contract_instances, event_ctx, eventEmitter, accounts, network) => {
-
   let block = await new Promise(res => {
     txService.events.emit('getBlock');
     txService.events.once('block', block => {
@@ -17,10 +16,10 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
   if (block === -1)
     return Promise.reject({code: 1});
 
-  if (block < currentBlock - 1)
+  if (block < currentBlock)
     return Promise.reject({code: 0});
 
-  txService.events.emit('getTxs', currentBlock);
+  txService.events.emit('getTxs', currentBlock++);
 
   let txs = await new Promise((resolve) => {
     txService.events.once('txs', resolve);
@@ -55,8 +54,7 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
       )
       .union([transactionModel.insertMany(res.txs)])
       .value()
-  ).catch(() => {
-  });
+  ).catch((e) => console.log(e));
 
   _.chain(res)
     .get('events')

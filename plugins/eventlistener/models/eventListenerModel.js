@@ -6,7 +6,7 @@ const mongoose = require('mongoose'),
  */
 const EventListener = new mongoose.Schema({
   event: {type: String, required: true},
-  controlIndexHash: {type: String, required: true},
+  controlIndexHash: {type: String, required: true, unique: true},
   filter: {
     type: mongoose.Schema.Types.Mixed, required: true, validate: [v => {
       if (!_.isObject(v))

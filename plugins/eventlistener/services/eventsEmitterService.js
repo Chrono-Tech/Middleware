@@ -11,7 +11,7 @@ const _ = require('lodash'),
 
 module.exports = async(ev, ctx, data) => {
 
-  let listeners = await eventListenerModel.find({event: ev.toLowerCase()})
+  let listeners = await eventListenerModel.find({event: ev.toLowerCase()});
 
   _.chain(listeners)
     .filter(listener =>

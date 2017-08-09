@@ -3,10 +3,8 @@ const config = require('../../config'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
   ipfsAPI = require('ipfs-api'),
-  amqp = require('amqplib'),
   contractsCtrl = require('../../controllers').contractsCtrl,
   eventsCtrl = require('../../controllers').eventsCtrl,
-  http = require('http'),
   mongoose = require('mongoose'),
   request = require('request'),
   moment = require('moment'),
@@ -137,89 +135,3 @@ test('validate query language', () =>
 
     })
 );
-
-test('add new filter', () =>
-  new Promise((res, rej) =>
-    request({
-      url: `http://localhost:${config.rest.port}/events/listener`,
-      method: 'POST',
-      json: {
-        event: 'transfer',
-        filter: {
-          to: ctx.accounts[1],
-          symbol: helpers.bytes32('TIME')
-        }
-      }
-    }, (err, resp) => {
-      err || resp.statusCode !== 200 ? rej(err) : res()
-    })
-  )
-);
-
-test('add TIME Asset', () => {
-  return ctx.contracts_instances.AssetsManager.addAsset(
-    ctx.contracts_instances.ChronoBankAssetProxy.address, 'TIME', ctx.accounts[0], {
-      from: ctx.accounts[0],
-      gas: 3000000
-    })
-    .then(result => {
-      expect(result).toBeDefined();
-      expect(result.tx).toBeDefined();
-      return Promise.resolve();
-    });
-});
-
-test('validate callback on transfer event', () => {
-
-  return Promise.all([
-    ctx.contracts_instances.AssetsManager.sendAsset(
-      helpers.bytes32('TIME'), ctx.accounts[1], 100, {
-        from: ctx.accounts[0],
-        gas: 3000000
-      }),
-    amqp.connect(config.rabbit.url)
-      .then(conn =>
-        conn.createChannel()
-          .then(ch => {
-
-            let tx = `${ctx.web3.sha3('transfer')}:${ctx.web3.sha3(JSON.stringify({
-              to: ctx.accounts[1],
-              symbol: helpers.bytes32('TIME')
-            }))}`;
-
-            return ch.assertQueue(`events:${tx}`, {durable: true})
-              .then(() => {
-                ch.consume(`events:${tx}`, msg => {
-                  console.log(msg.content.toString());
-                }, {noAck: false});
-              });
-          })
-      )
-  ])
-});
-
-test('remove filter', () => {
-
-  let listener = {
-    event: 'transfer',
-    filter: {
-      to: ctx.accounts[1],
-      symbol: helpers.bytes32('TIME')
-    }
-  };
-
-  return new Promise((res, rej) =>
-    request({
-      url: `http://localhost:${config.rest.port}/events/listener`,
-      method: 'DELETE',
-      json: {
-        id: `${ctx.web3.sha3(listener.event)}:${ctx.web3.sha3(JSON.stringify(listener.filter))}`
-      }
-    }, (err, resp) => {
-      err || resp.statusCode !== 200 ? rej(err) : res(resp.body)
-    })
-  )
-    .then(response => {
-      expect(response.success).toEqual(true);
-    })
-});

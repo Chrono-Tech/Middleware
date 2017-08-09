@@ -92,7 +92,7 @@ Promise.all([
     accounts = _.map(accounts, a => a.address);
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
-    currentBlock = _.chain(currentBlock).get('block', 0).add(1).value();
+    currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
     let event_ctx = eventsCtrl(contracts);
     let eventEmitter = new emitter();
     let app = express();
@@ -101,23 +101,23 @@ Promise.all([
     let txService = listenTxsFromBlockIPCService(network);
 
     let process = () => {
-      return blockProcessService(txService, currentBlock++, contract_instances, event_ctx, eventEmitter, accounts, network)
-        .then(() => process())
+      return blockProcessService(txService, currentBlock, contract_instances, event_ctx, eventEmitter, accounts, network)
+        .then(() => {
+          currentBlock++;
+          process();
+        })
         .catch(err => {
-          if (![0, 1, 2, 11000].includes(_.get(err, 'code')))
-            currentBlock = currentBlock - 2;
+          if ([1, 2, 11000].includes(_.get(err, 'code')))
+            currentBlock++;
 
           if (_.get(err, 'code') === 0)
             log.info(`await for next block ${currentBlock}`);
 
           if (_.get(err, 'code') === 1)
-            log.info(`found a broken block ${currentBlock}`);
+            log.info(`found a broken block ${currentBlock - 1}`);
 
           _.get(err, 'code') === 0 ?
-            setTimeout(() => {
-              currentBlock--;
-              process();
-            }, 10000) :
+            setTimeout(process, 10000) :
             process();
         });
     };

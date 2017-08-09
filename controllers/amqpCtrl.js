@@ -22,12 +22,10 @@ module.exports = async() => {
 
   let channelWrapper = async(f) => {
 
-    console.log('inside')
     let eventEmitter = new emitter();
 
     let errorPromise = new Promise(res =>
-      channel.once('error', (e) => {
-        console.log('super error');
+      channel.once('error', () => {
         conn.createChannel()
           .then(conn => channel = conn)
           .then(() => {
@@ -43,7 +41,6 @@ module.exports = async() => {
               })
           })
           .then(() => {
-            console.log('will resolve');
             res()
           })
       })
@@ -53,7 +50,6 @@ module.exports = async() => {
       eventEmitter.once('done', res)
     );
 
-    console.log('await');
     return await Promise.some([
       errorPromise,
       successPromise,

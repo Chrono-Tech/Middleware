@@ -9,7 +9,7 @@ module.exports = (ctx) => {
         chain = chain.delay(10000).then(() =>
           blockModel.findOne({network: 'development'})
             .then(block => {
-              block.block - 1 === result ?
+              block.block > result - 10 ?
                 res() : check()
             })
         )

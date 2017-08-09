@@ -44,6 +44,6 @@ module.exports = {
     port: parseInt(process.env.REST_PORT) || 8081
   },
   rabbit: {
-    url: 'amqp://localhost:32769'
+    url: process.env.RABBIT_URI || 'amqp://localhost:5672'
   }
 };
