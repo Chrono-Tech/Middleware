@@ -18,7 +18,6 @@ module.exports = async(ctx) => {
   let channel = await allocateChannel();
 
   try {
-    await channel.checkQueue('events:register');
     await channel.assertQueue('events:register');
   } catch (e) {
     channel = await allocateChannel();
