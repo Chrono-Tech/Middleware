@@ -46,6 +46,7 @@ REST_PORT=8081
 IPFS_NODES=http://localhost:5001, http://localhost:5001
 SCHEDULE_JOB=30 * * * * *
 SCHEDULE_CHECK_TIME=0
+RABBIT_URI=amqp://localhost:5672
 DOMAIN=localhost
 ```
 
@@ -58,6 +59,7 @@ The options are presented below:
 | IPFS_NODES   | should contain a comma separated uri connection strings for ipfs nodes
 | SCHEDULE_JOB   | a configuration for ipfs pin plugin in a cron based format
 | SCHEDULE_CHECK_TIME   | an option, which defines how old should be records, which have to be pinned
+| RABBIT_URI   | rabbitmq URI connection string
 
 ### Run
 Just cd to root project's dir and type:
@@ -74,7 +76,7 @@ we expose them via rest api. The route system is look like so:
 | /events   | GET | |returns list of all available events
 | /events/{event_name}   | GET | |returns an event's collection
 | /transactions   | GET |  | returns an transaction's collection
-| /events/listener   | POST | callback - callback url (should be a POST one), event - event's name, filter - object, by which event's data will be filtered | register an event's listener with certain criteria (or filter) - when event is emitted, a callback will be fired with event's data and send it with POST request
+| /events/listener   | POST | event - event's name, filter - object, by which event's data will be filtered | register an event's listener with certain criteria (or filter) - when event is emitted, a callback will be fired with event's data and send it with POST request
 
 #### REST guery language
 
@@ -84,6 +86,17 @@ curl http://localhost:8080/events/issue?issueNumber<20
 ```
 
 For more information about queries, please refer to [query-to-mongo-and-back](https://github.com/ega-forever/query-to-mongo-and-back).
+
+### AMQP service
+
+For the moment, amqp is used as a transport layer for delivering data, received from emitted events from smart contracts. In order to use this feature, you need:
+1) register your event (via rest service)
+2) then register your consumer via amqp - send to events:register queue the json object:
+```
+{id: event_id, client: client_name}
+```
+3) finally consume (listen) to messages from queue called 'events:{event_id}.{client_name}'.
+
 
 ### Testing
 Right now, only integration tests are provided. Thus should check:

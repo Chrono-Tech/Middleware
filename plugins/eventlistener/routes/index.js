@@ -32,7 +32,7 @@ module.exports = (ctx, router) => {
 
     return eventListener.save()
       .then(() => {
-        res.send(messages.success);
+        res.send({id: eventListener.controlIndexHash});
       })
       .catch(() => res.send(messages.fail));
 
