@@ -1,7 +1,3 @@
-const _ = require('lodash'),
-  bunyan = require('bunyan'),
-  eventListenerModel = require('../models/eventListenerModel'),
-  log = bunyan.createLogger({name: 'plugins.rest.services.eventEmitter.eventEmitterService'});
 /**
  * @module scheduleService
  * @description ping ipfs by specified time in config
@@ -10,20 +6,58 @@ const _ = require('lodash'),
 
 module.exports = async(ctx) => {
 
-  let instance = await ctx.amqpEmitter.queue('events:register');
+  let allocateChannel = async() => {
+    let channel = await ctx.amqpInstance.createChannel();
+    channel.on('error', () => {
+    });
+    return channel;
+  };
 
   let chain = Promise.resolve();
 
-  instance.on(data => {//todo reassign on fail
-    let payload = JSON.parse(data);
+  let channel = await allocateChannel();
 
+  try {
+    await channel.checkQueue('events:register');
+    await channel.assertQueue('events:register');
+  } catch (e) {
+    channel = await allocateChannel();
+  }
+
+  channel.consume('events:register', async data => {
+    channel.ack(data);
+    let payload = JSON.parse(data.content.toString());
     let ex = `events:${payload.id}`;
-    console.log('ex', ex);
     let channel_id = `${ex}.${payload.client}`;
+    let channel_ex = await allocateChannel();
 
-    chain = chain.then(() =>
-      ctx.amqpEmitter.exchange(ex, channel_id)
-    );
+    try {
+      await chain;
+    } catch (e) {
+      channel_ex = await allocateChannel();
+    }
+
+    try {
+      await channel_ex.assertExchange(ex, 'fanout');
+    } catch (e) {
+      channel_ex = await allocateChannel();
+    }
+
+    try {
+      await channel_ex.assertQueue(channel_id);
+    } catch (e) {
+      channel_ex = await allocateChannel();
+    }
+
+    try {
+      chain = await channel.bindQueue(channel_id, ex, '')
+        .catch(() => {
+        })
+        .then(() => channel_ex.close());
+    } catch (e) {
+
+    }
+
   });
 
 };

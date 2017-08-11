@@ -40,9 +40,9 @@ module.exports = async(network) => {
         .then(instance => {
           return _.set(instances, contract.toJSON().contract_name, instance);
         }).catch((e) => {
-        log.debug(e);
-      })
-  )
+          log.debug(e);
+        })
+  );
 
   return {instances, contracts, web3};
 

@@ -95,7 +95,7 @@ test('validate callback on transfer event via amqp', async() => {
   await Promise.all(
     _.map(clients, client => {
       ctx.amqp.channel.sendToQueue('events:register', Buffer.from(JSON.stringify({id: tx_id, client: client})));
-      return ctx.amqp.channel.assertQueue(`events:${tx_id}.${client}`, {durable: false})
+      return ctx.amqp.channel.assertQueue(`events:${tx_id}.${client}`)
     })
   );
 

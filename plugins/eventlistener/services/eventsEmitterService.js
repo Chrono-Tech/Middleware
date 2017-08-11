@@ -1,8 +1,6 @@
 const _ = require('lodash'),
-  bunyan = require('bunyan'),
-  Promise = require('bluebird'),
-  eventListenerModel = require('../models/eventListenerModel'),
-  log = bunyan.createLogger({name: 'plugins.rest.services.eventEmitter.eventEmitterService'});
+  eventListenerModel = require('../models/eventListenerModel');
+
 /**
  * @module scheduleService
  * @description ping ipfs by specified time in config
@@ -13,14 +11,21 @@ module.exports = async(ev, ctx, data) => {
 
   let listeners = await eventListenerModel.find({event: ev.toLowerCase()});
 
-  _.chain(listeners)
+  let channel = await ctx.amqpInstance.createChannel();
+
+  await _.chain(listeners)
     .filter(listener =>
       _.isEqual(listener.filter, _.pick(data, _.keys(listener.filter)))
     )
-    .map(listener => {
-      console.log('event', `events:${listener.controlIndexHash}`);
-      ctx.amqpEmitter.publish(`events:${listener.controlIndexHash}`, data);
+    .map(async listener => {
+      try {
+        return await channel.publish(`events:${listener.controlIndexHash}`, '', Buffer.from(JSON.stringify(data)));
+      } catch (e) {
+        channel = await ctx.amqpInstance.createChannel();
+      }
     })
-    .value()
+    .value();
+
+  await channel.close();
 
 };

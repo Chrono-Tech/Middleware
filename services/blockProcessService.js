@@ -54,7 +54,7 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
       )
       .union([transactionModel.insertMany(res.txs)])
       .value()
-  ).catch((e) => console.log(e));
+  );
 
   _.chain(res)
     .get('events')

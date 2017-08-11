@@ -81,7 +81,7 @@ Promise.all([
   accountModel.find({}),
   amqpCtrl()
 ])
-  .spread((contracts_ctx, currentBlock, accounts, amqpEmitter) => {
+  .spread((contracts_ctx, currentBlock, accounts, amqpInstance) => {
 
     if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address')/* || !_.has(contracts_ctx, 'instances.EventsHistory.address')*/) {
       log.info(`contracts haven't been deployed to network - ${network}`);
@@ -131,7 +131,7 @@ Promise.all([
       contracts: contracts,
       network: network,
       users: accounts,
-      amqpEmitter: amqpEmitter,
+      amqpInstance: amqpInstance,
       express: app
     };
 
