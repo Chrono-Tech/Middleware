@@ -26,7 +26,13 @@ module.exports = async(ctx) => {
 
   channel.consume('events:register', async data => {
     channel.ack(data);
-    let payload = JSON.parse(data.content.toString());
+    let payload;
+    try {
+      payload = JSON.parse(data.content.toString());
+    } catch (e) {
+      return;
+    }
+
     let ex = `events:${payload.id}`;
     let channel_id = `${ex}.${payload.client}`;
     let channel_ex = await allocateChannel();
