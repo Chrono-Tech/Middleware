@@ -50,15 +50,6 @@ test('validate block exist in mongo', async() => {
   ctx.factory.block = result.block;
 });
 
-test('validate block exist in mongo', async() => {
-  let result = await blockModel
-    .findOne({network: 'development'});
-
-  expect(result).toBeDefined();
-  expect(result.block).toBeDefined();
-  ctx.factory.block = result.block;
-});
-
 test('add new CBE', async() => {
 
   const obj = {
