@@ -83,7 +83,7 @@ Promise.all([
 ])
   .spread((contracts_ctx, currentBlock, accounts, amqpInstance) => {
 
-    if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address')/* || !_.has(contracts_ctx, 'instances.EventsHistory.address')*/) {
+    if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address')) {
       log.info(`contracts haven't been deployed to network - ${network}`);
       log.info('restart process in one hour...');
       return setTimeout(() => process.exit(1), 3600 * 1000);

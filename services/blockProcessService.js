@@ -50,13 +50,19 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
         ev.event === 'NewUserRegistered' ? new event_ctx.eventModels[ev.event](_.merge(ev.args, {network: network})).save()
           .then(() => new accountModel({network: network, address: ev.args.key}).save())
           .then(() => accounts.push(ev.args.key))
-          .catch(()=>{}) :
+          .catch(() => {
+          }) :
           new event_ctx.eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-            .catch(()=>{})
+            .catch(() => {
+            })
       )
       .union([transactionModel.insertMany(res.txs)])
       .value()
   );
+
+  _.forEach(res.txs, tx => {
+    eventEmitter.emit('transaction', tx);
+  });
 
   _.chain(res)
     .get('events')

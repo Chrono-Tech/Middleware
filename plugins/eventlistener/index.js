@@ -1,6 +1,7 @@
 const _ = require('lodash'),
   express = require('express'),
   eventEmitterService = require('./services/eventsEmitterService'),
+  txEmitterService = require('./services/txEmitterService'),
   eventsConsumerRegistrationService = require('./services/eventsConsumerRegistrationService'),
   routes = require('./routes');
 
@@ -32,5 +33,10 @@ module.exports = (ctx) => {
       });
     })
     .value();
+
+  ctx.events.on('transaction', data => {
+    txEmitterService(ctx, data);
+  });
+
 
 };
