@@ -5,7 +5,7 @@ const _ = require('lodash'),
   Promise = require('bluebird'),
   aggregateTxsByBlockService = require('./aggregateTxsByBlockService');
 
-module.exports = async(txService, currentBlock, contract_instances, event_ctx, eventEmitter, accounts, network) => {
+module.exports = async(txService, currentBlock, contract_instances, event_ctx, eventEmitter, network) => {
   let block = await new Promise(res => {
     txService.events.emit('getBlock');
     txService.events.once('block', block => {
@@ -36,8 +36,13 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
       });
   }, {concurrency: 1});
 
+  let accounts = await accountModel.find({}); //todo refactor
+  accounts = _.map(accounts, a => a.address);
+
+  console.log('before')
+  console.log(accounts)
   let res = aggregateTxsByBlockService(txs,
-    [contract_instances.MultiEventsHistory.address, /*contract_instances.EventsHistory.address*/],
+    [contract_instances.MultiEventsHistory.address],
     event_ctx.signatures,
     accounts,
     network

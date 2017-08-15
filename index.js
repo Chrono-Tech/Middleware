@@ -78,10 +78,9 @@ let network = process.env.network;
 Promise.all([
   contractsCtrl(network),
   blockModel.findOne({network: network}).sort('-block'),
-  accountModel.find({}),
   amqpCtrl()
 ])
-  .spread((contracts_ctx, currentBlock, accounts, amqpInstance) => {
+  .spread((contracts_ctx, currentBlock, amqpInstance) => {
 
     if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address')) {
       log.info(`contracts haven't been deployed to network - ${network}`);
@@ -89,7 +88,6 @@ Promise.all([
       return setTimeout(() => process.exit(1), 3600 * 1000);
     }
 
-    accounts = _.map(accounts, a => a.address);
     let contracts = contracts_ctx.contracts;
     let contract_instances = contracts_ctx.instances;
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
@@ -101,7 +99,7 @@ Promise.all([
     let txService = listenTxsFromBlockIPCService(network);
 
     let process = () => {
-      return blockProcessService(txService, currentBlock, contract_instances, event_ctx, eventEmitter, accounts, network)
+      return blockProcessService(txService, currentBlock, contract_instances, event_ctx, eventEmitter, network)
         .then(() => {
           currentBlock++;
           process();
@@ -130,7 +128,6 @@ Promise.all([
       eventModels: event_ctx.eventModels,
       contracts: contracts,
       network: network,
-      users: accounts,
       amqpInstance: amqpInstance,
       express: app
     };

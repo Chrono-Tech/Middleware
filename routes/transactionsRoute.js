@@ -1,5 +1,6 @@
 const transactionModel = require('../models').transactionModel,
   accountModel = require('../models').accountModel,
+  _ = require('lodash'),
   messages = require('../factories').messages.genericMessageFactory,
   q2mb = require('query-to-mongo-and-back');
 
@@ -31,7 +32,20 @@ module.exports = async(ctx, router) => {
 
     try {
       await account.save();
-      ctx.users.push(req.body.address); //todo refactor
+    } catch (e) {
+      return res.send(messages.fail);
+    }
+    res.send(messages.success);
+
+  });
+
+  router.delete('/account', async(req, res) => {
+
+    if (!req.body.address)
+      return res.send(messages.fail);
+
+    try {
+      await accountModel.remove({address: req.body.address});
     } catch (e) {
       return res.send(messages.fail);
     }
