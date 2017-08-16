@@ -15,4 +15,4 @@ const Account = new mongoose.Schema({
 
 });
 
-module.exports = mongoose.model('Account', Account);
+module.exports = mongoose.model('EthAccount', Account);

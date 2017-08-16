@@ -43,4 +43,4 @@ Transaction.pre('validate', function(next) {
   next();
 });
 
-module.exports = mongoose.model('Transaction', Transaction);
+module.exports = mongoose.model('EthTransaction', Transaction);
