@@ -52,24 +52,6 @@ afterAll(() => {
   return mongoose.disconnect();
 });
 
-test('add new filter', () =>
-  new Promise((res, rej) =>
-    request({
-      url: `http://localhost:${config.rest.port}/eventlistener`,
-      method: 'POST',
-      json: {
-        event: 'transfer',
-        filter: {
-          to: ctx.accounts[1],
-          symbol: helpers.bytes32('TIME')
-        }
-      }
-    }, (err, resp) => {
-      err || resp.statusCode !== 200 ? rej(resp) : res()
-    })
-  )
-);
-
 test('add TIME Asset', async() => {
   let result = await ctx.contracts_instances.AssetsManager.addAsset(
     ctx.contracts_instances.ChronoBankAssetProxy.address, 'TIME', ctx.accounts[0], {
@@ -85,17 +67,25 @@ test('add TIME Asset', async() => {
 
 test('validate callback on transfer event via amqp', async() => {
 
-  let tx_id = `${ctx.web3.sha3('transfer')}:${ctx.web3.sha3(JSON.stringify({
-    to: ctx.accounts[1],
-    symbol: helpers.bytes32('TIME')
-  }))}`;
-
   let clients = _.chain(new Array(_.random(2, 10))).map((i, s) => s + Date.now()).value();
+
+
+  try {
+    await ctx.amqp.channel.assertExchange('events', 'direct', {durable: false});
+  }catch(e){
+    ctx.amqp.channel = await ctx.amqp.connection.createChannel();
+  }
+
 
   await Promise.all(
     _.map(clients, client => {
-      ctx.amqp.channel.sendToQueue('events:register', Buffer.from(JSON.stringify({id: tx_id, client: client})));
-      return ctx.amqp.channel.assertQueue(`events:${tx_id}.${client}`)
+      return ctx.amqp.channel.assertQueue(`test.${client}`, {exclusive: true, autoDelete: true})
+    })
+  );
+
+  await Promise.all(
+    _.map(clients, client => {
+      return ctx.amqp.channel.bindQueue(`test.${client}`, 'events', 'transfer')
     })
   );
 
@@ -103,7 +93,7 @@ test('validate callback on transfer event via amqp', async() => {
     _.chain(clients)
       .map(client =>
         new Promise(res =>
-          ctx.amqp.channel.consume(`events:${tx_id}.${client}`, res, {noAck: true})
+          ctx.amqp.channel.consume(`test.${client}`, res, {noAck: true})
         )
       )
       .union([
@@ -122,19 +112,14 @@ test('validate callback on transfer event via amqp', async() => {
 
 test('validate callback on transfer event via stomp client', async() => {
 
-  let tx_id = `${ctx.web3.sha3('transfer')}:${ctx.web3.sha3(JSON.stringify({
-    to: ctx.accounts[1],
-    symbol: helpers.bytes32('TIME')
-  }))}`;
 
   let clients = _.chain(new Array(_.random(2, 10))).map((i, s) => s + Date.now()).value();
 
   return await Promise.all(
     _.chain(clients)
-      .map(client => {
-        ctx.stomp.client.send('events:register', JSON.stringify({id: tx_id, client: client}));
+      .map(() => {
         return new Promise(res =>
-          ctx.stomp.client.subscribe(`events:${tx_id}.${client}`, res, {noAck: true})
+          ctx.stomp.client.subscribe('/exchange/events/transfer', res, {noAck: true})
         )
       })
       .union([
@@ -150,30 +135,3 @@ test('validate callback on transfer event via stomp client', async() => {
       .value()
   )
 });
-
-test('remove filter', () => {
-
-  let listener = {
-    event: 'transfer',
-    filter: {
-      to: ctx.accounts[1],
-      symbol: helpers.bytes32('TIME')
-    }
-  };
-
-  return new Promise((res, rej) =>
-    request({
-      url: `http://localhost:${config.rest.port}/eventlistener`,
-      method: 'DELETE',
-      json: {
-        id: `${ctx.web3.sha3(listener.event)}:${ctx.web3.sha3(JSON.stringify(listener.filter))}`
-      }
-    }, (err, resp) => {
-      err || resp.statusCode !== 200 ? rej(err) : res(resp.body)
-    })
-  )
-    .then(response => {
-      expect(response.success).toEqual(true);
-    })
-});
-

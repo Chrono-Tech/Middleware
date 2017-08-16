@@ -1,7 +1,6 @@
 const mongoose = require('mongoose'),
   config = require('./config'),
   blockModel = require('./models').blockModel,
-  accountModel = require('./models').accountModel,
   contractsCtrl = require('./controllers').contractsCtrl,
   eventsCtrl = require('./controllers').eventsCtrl,
   amqpCtrl = require('./controllers').amqpCtrl,

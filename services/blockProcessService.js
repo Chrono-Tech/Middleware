@@ -39,8 +39,6 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
   let accounts = await accountModel.find({}); //todo refactor
   accounts = _.map(accounts, a => a.address);
 
-  console.log('before')
-  console.log(accounts)
   let res = aggregateTxsByBlockService(txs,
     [contract_instances.MultiEventsHistory.address],
     event_ctx.signatures,

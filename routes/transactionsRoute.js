@@ -1,6 +1,5 @@
 const transactionModel = require('../models').transactionModel,
   accountModel = require('../models').accountModel,
-  _ = require('lodash'),
   messages = require('../factories').messages.genericMessageFactory,
   q2mb = require('query-to-mongo-and-back');
 

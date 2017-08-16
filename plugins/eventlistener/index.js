@@ -1,9 +1,5 @@
 const _ = require('lodash'),
-  express = require('express'),
-  eventEmitterService = require('./services/eventsEmitterService'),
-  txEmitterService = require('./services/txEmitterService'),
-  eventsConsumerRegistrationService = require('./services/eventsConsumerRegistrationService'),
-  routes = require('./routes');
+  eventEmitterService = require('./services/eventsEmitterService');
 
 /**
  * @module rest
@@ -19,12 +15,6 @@ const _ = require('lodash'),
 
 module.exports = (ctx) => {
 
-  let router = express.Router();
-  routes(ctx, router);
-
-  ctx.express.use('/eventlistener', router);
-
-  eventsConsumerRegistrationService(ctx);
   _.chain(ctx.eventModels)
     .keys()
     .forEach(event => {
@@ -35,7 +25,7 @@ module.exports = (ctx) => {
     .value();
 
   ctx.events.on('transaction', data => {
-    txEmitterService(ctx, data);
+    eventEmitterService('eth_transaction', ctx, data);
   });
 
 
