@@ -35,9 +35,9 @@ module.exports = async (txs, web3) => {
             .pick (['event', 'args'])
             .merge ({args: {controlIndexHash: `${ev.logIndex}:${ev.transactionHash}:${web3.sha3 (config.web3.network)}`}})
             .thru (ev => ({
-                name: ev.event,
-                payload: new smEvents.eventModels[ev.event] (_.merge (ev.args, {network: config.web3.network}))
-              })
+              name: ev.event,
+              payload: new smEvents.eventModels[ev.event] (_.merge (ev.args, {network: config.web3.network}))
+            })
             )
             .value ()
         );

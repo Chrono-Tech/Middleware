@@ -127,7 +127,7 @@ const init = async () => {
         _.chain (filtered.balance)
           .map (tx =>
             [tx.from, tx.to].map (address =>
-              eventsEmitterService (amqpInstance, `eth_transaction.${address}`, tx.controlIndexHash)
+              eventsEmitterService (amqpInstance, `eth_transaction.${address}`, tx.payload)
                 .catch(()=>{})
             )
           )
@@ -138,7 +138,7 @@ const init = async () => {
 
       await Promise.all (
         filtered.events.map (event =>
-          eventsEmitterService (amqpInstance, event.name, event.payload.controlIndexHash)
+          eventsEmitterService (amqpInstance, `eth_${event.name.toLowerCase()}`, event.payload.controlIndexHash)
         )
       );
 

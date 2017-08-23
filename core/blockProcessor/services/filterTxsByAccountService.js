@@ -14,6 +14,8 @@ module.exports = async (txs) => {
     }
   });
 
+  accounts = _.map(accounts, account=>account.address);
+
   return _.chain (txs)
     .filter (tx =>
       (accounts.includes (tx.to) || accounts.includes (tx.from)) && parseInt (tx.value) > 0

@@ -21,8 +21,7 @@ module.exports = async (amqpInstance, event, data) => {
   }
 
   try {
-    console.log(`eth_${event}`);
-    await  channel.publish('events', `eth_${event.toLowerCase()}`, new Buffer(JSON.stringify(data)));
+    await  channel.publish('events', event, new Buffer(JSON.stringify(data)));
   } catch (e) {
     log.error(e);
   }

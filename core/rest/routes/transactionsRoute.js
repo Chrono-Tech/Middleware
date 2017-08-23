@@ -1,6 +1,6 @@
-const transactionModel = require('../models').transactionModel,
-  accountModel = require('../models').accountModel,
-  messages = require('../factories').messages.genericMessageFactory,
+const transactionModel = require('../../../models').transactionModel,
+  accountModel = require('../../../models').accountModel,
+  messages = require('../../../factories').messages.genericMessageFactory,
   q2mb = require('query-to-mongo-and-back');
 
 /**
@@ -9,7 +9,7 @@ const transactionModel = require('../models').transactionModel,
  * @param app - express instance
  */
 
-module.exports = async(ctx, router) => {
+module.exports = async(router) => {
 
   router.get('/', async(req, res) => {
     //convert query request to mongo's
@@ -35,6 +35,19 @@ module.exports = async(ctx, router) => {
       return res.send(messages.fail);
     }
     res.send(messages.success);
+
+  });
+
+  router.get('/accounts', async(req, res) => {
+    //convert query request to mongo's
+    let q = q2mb.fromQuery(req.query);
+    //retrieve all records, which satisfy the query
+    let result = await accountModel.find(q.criteria, q.options.fields)
+      .sort(q.options.sort)
+      .limit(q.options.limit)
+      .catch(() => []);
+
+    res.send(result);
 
   });
 

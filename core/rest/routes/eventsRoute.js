@@ -1,25 +1,28 @@
 const q2mb = require('query-to-mongo-and-back'),
   bunyan = require('bunyan'),
+  generateSMEventsService = require('../services/generateSMEventsService'),
   log = bunyan.createLogger({name: 'plugins.rest.routes.eventRouter'}),
   _ = require('lodash');
 
 /**
  * @function eventsRoute
  * @description register event's routes
- * @param app - express instance
  * @param ctx - context object, exposed from core system to each plugin
  */
 
 
-module.exports = (ctx, router) => {
+module.exports = (router) => {
+
+
+  let eventModels = generateSMEventsService();
 
   //return all available collections to user
   router.get('/', (req, res) => {
-    res.send(Object.keys(ctx.eventModels));
+    res.send(Object.keys(eventModels));
   });
 
   //register each event in express by its name
-  _.forEach(ctx.eventModels, (model, name) => {
+  _.forEach(eventModels, (model, name) => {
     router.get(`/${name}`, (req, res) => {
       //convert query request to mongo's
       let q = q2mb.fromQuery(req.query);
