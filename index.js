@@ -24,65 +24,22 @@ const mongoose = require('mongoose'),
  * listen for changes, and notify plugins.
  */
 
-const networks = _.keys(config.web3.networks);
-const workers = {};
-
-process.on('exit', code => {
-
-  log.info('master process exit!');
-
-  process.exit(code);
-});
-
-process.on('SIGINT', () => {
-  log.info('\nCTRL+C...');
-  process.exit(0);
-});
-
-// Catch uncaught exception
-process.on('uncaughtException', err => {
-  log.info(err);
-  process.exit(1);
-});
-
-//clustering the app to worker per network
-if (cluster.isMaster) {
-  for (let i = 0; i < networks.length; i++) {
-    workers[i + 1] = networks[i];
-    cluster.fork({network: networks[i]});
-  }
-
-  //if worker is down - then we resurrect him
-  cluster.on('exit', worker => {
-    log.error(`worker with pid:${worker.id} is dead`);
-
-    let network = workers[worker.id];
-    let new_id = _.chain(workers).keys().max().toNumber().add(1).value();
-    workers[new_id] = network;
-    delete workers[worker.id];
-
-    cluster.fork({network: network});
-  });
-
-  return;
-}
 
 mongoose.connect(config.mongo.uri);
 
 //we expose network name to webworker from muster node
-let network = process.env.network;
 
 //init contracts on the following network and fetch the latest block for this network from mongo
 
 Promise.all([
-  contractsCtrl(network),
-  blockModel.findOne({network: network}).sort('-block'),
+  contractsCtrl(config.web3.network),
+  blockModel.findOne({network: config.web3.network}).sort('-block'),
   amqpCtrl()
 ])
   .spread((contracts_ctx, currentBlock, amqpInstance) => {
 
     if (!_.has(contracts_ctx, 'instances.MultiEventsHistory.address')) {
-      log.info(`contracts haven't been deployed to network - ${network}`);
+      log.info(`contracts haven't been deployed to network - ${config.web3.network}`);
       log.info('restart process in one hour...');
       return setTimeout(() => process.exit(1), 3600 * 1000);
     }
@@ -92,13 +49,12 @@ Promise.all([
     currentBlock = _.chain(currentBlock).get('block', 0).add(0).value();
     let event_ctx = eventsCtrl(contracts);
     let eventEmitter = new emitter();
-    let app = express();
 
-    log.info(`search from block:${currentBlock} for network:${network}`);
-    let txService = listenTxsFromBlockIPCService(network);
+    log.info(`search from block:${currentBlock} for network:${config.web3.network}`);
+    let txService = listenTxsFromBlockIPCService(config.web3.network);
 
     let process = () => {
-      return blockProcessService(txService, currentBlock, contract_instances, event_ctx, eventEmitter, network)
+      return blockProcessService(txService, currentBlock, contract_instances, event_ctx, eventEmitter)
         .then(() => {
           currentBlock++;
           process();
@@ -121,12 +77,11 @@ Promise.all([
 
     txService.events.on('connected', process);
 
-    let ctx = {
+/*    let ctx = {
       events: eventEmitter,
       contracts_instances: contract_instances,
       eventModels: event_ctx.eventModels,
       contracts: contracts,
-      network: network,
       amqpInstance: amqpInstance,
       express: app
     };
@@ -143,6 +98,6 @@ Promise.all([
 
     _.chain(plugins).values()
       .forEach(plugin => plugin(ctx))
-      .value();
+      .value();*/
 
   });

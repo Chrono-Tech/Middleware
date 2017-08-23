@@ -3,9 +3,10 @@ const _ = require('lodash'),
   accountModel = require('../models').accountModel,
   transactionModel = require('../models').transactionModel,
   Promise = require('bluebird'),
+  config = require('../config'),
   aggregateTxsByBlockService = require('./aggregateTxsByBlockService');
 
-module.exports = async(txService, currentBlock, contract_instances, event_ctx, eventEmitter, network) => {
+module.exports = async(txService, currentBlock, contract_instances, event_ctx, eventEmitter) => {
   let block = await new Promise(res => {
     txService.events.emit('getBlock');
     txService.events.once('block', block => {
@@ -42,20 +43,19 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
   let res = aggregateTxsByBlockService(txs,
     [contract_instances.MultiEventsHistory.address],
     event_ctx.signatures,
-    accounts,
-    network
+    accounts
   );
 
   await Promise.all(
     _.chain(res)
       .get('events')
       .map(ev =>
-        ev.event === 'NewUserRegistered' ? new event_ctx.eventModels[ev.event](_.merge(ev.args, {network: network})).save()
-          .then(() => new accountModel({network: network, address: ev.args.key}).save())
+        ev.event === 'NewUserRegistered' ? new event_ctx.eventModels[ev.event](_.merge(ev.args, {network: config.web3.network})).save()
+          .then(() => new accountModel({network: config.web3.network, address: ev.args.key}).save())
           .then(() => accounts.push(ev.args.key))
           .catch(() => {
           }) :
-          new event_ctx.eventModels[ev.event](_.merge(ev.args, {network: network})).save()
+          new event_ctx.eventModels[ev.event](_.merge(ev.args, {network: config.web3.network})).save()
             .catch(() => {
             })
       )
@@ -74,7 +74,7 @@ module.exports = async(txService, currentBlock, contract_instances, event_ctx, e
     })
     .value();
 
-  await blockModel.findOneAndUpdate({network: network}, {
+  await blockModel.findOneAndUpdate({network: config.web3.network}, {
     $set: {
       block: currentBlock,
       created: Date.now()

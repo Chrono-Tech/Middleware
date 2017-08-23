@@ -1,6 +1,5 @@
 require('dotenv').config();
-const truffle_config = require('chronobank-smart-contracts/truffle.js'),
-  url = require('url'),
+const url = require('url'),
   _ = require('lodash');
 
 /**
@@ -31,7 +30,10 @@ module.exports = {
     })
     .value() :
     [{'host': 'localhost', 'port': '5001', 'protocol': 'http'}],
-  web3: truffle_config,
+  web3: {
+    network: process.env.NETWORK || 'development',
+    uri: `${/^win/.test (process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${process.env.NETWORK || 'development'}/geth.ipc`
+  },
   schedule: {
     job: process.env.SCHEDULE_JOB || '30 * * * * *',
     check_time: parseInt(process.env.SCHEDULE_CHECK_TIME) || 0
@@ -45,5 +47,8 @@ module.exports = {
   },
   rabbit: {
     url: process.env.RABBIT_URI || 'amqp://localhost:5672'
+  },
+  smartContracts: {
+    listenEvents: process.env.SMART_CONTRACTS_LISTEN_EVENTS || false
   }
 };
