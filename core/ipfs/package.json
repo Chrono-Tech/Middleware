@@ -1,16 +1,15 @@
 {
-  "name": "middleware_bitcoin.rest",
+  "name": "middleware_bitcoin.ipfs",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
     "bluebird": "^3.5.0",
-    "body-parser": "^1.17.2",
     "bunyan": "^1.8.12",
-    "cors": "^2.8.4",
     "dotenv": "^4.0.0",
-    "express": "^4.15.4",
     "lodash": "^4.17.4",
-    "query-to-mongo-and-back": "git+https://github.com/ega-forever/query-to-mongo-and-back.git#develop"
+    "node-schedule": "^1.2.3",
+    "ipfs-api": "^14.0.2"
+
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

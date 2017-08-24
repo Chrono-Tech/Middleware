@@ -49,6 +49,12 @@ module.exports = {
     url: process.env.RABBIT_URI || 'amqp://localhost:5672'
   },
   smartContracts: {
-    listenEvents: process.env.SMART_CONTRACTS_LISTEN_EVENTS || false
+    events: {
+      listen: parseInt(process.env.SMART_CONTRACTS_EVENTS_LISTEN) || false,
+      ttl: parseInt(process.env.SMART_CONTRACTS_EVENTS_TTL) || false
+    }
+  },
+  transactions: {
+    ttl: parseInt(process.env.TRANSACTION_TTL) || false
   }
 };

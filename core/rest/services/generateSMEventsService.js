@@ -1,13 +1,22 @@
-const _ = require ('lodash'),
-  require_all = require ('require-all'),
-  path = require ('path'),
+const _ = require('lodash'),
+  require_all = require('require-all'),
+  path = require('path'),
+  fs = require('fs'),
+  config = require('../../../config'),
   mongoose = require('mongoose'),
-  contract = require ('truffle-contract'),
-  contracts = require_all ({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
-    dirname: path.join (__dirname, '../../../node_modules', 'chronobank-smart-contracts/build/contracts'),
+  contract = require('truffle-contract');
+
+let contracts = {};
+
+let contractsPath = path.join(__dirname, '../../../node_modules', 'chronobank-smart-contracts/build/contracts');
+
+if (fs.existsSync(contractsPath) && config.smartContracts.events.listen) {
+  contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
+    dirname: contractsPath,
     filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
-    resolve: Contract => contract (Contract)
+    resolve: Contract => contract(Contract)
   });
+}
 
 /**
  * @module events Controller
@@ -17,40 +26,40 @@ const _ = require ('lodash'),
 
 module.exports = () => {
 
-  return _.chain (contracts)
-    .map (value => //fetch all events
-      _.chain (value).get ('abi')
-        .filter ({type: 'event'})
-        .value ()
+  return _.chain(contracts)
+    .map(value => //fetch all events
+      _.chain(value).get('abi')
+        .filter({type: 'event'})
+        .value()
     )
-    .flatten ()
-    .groupBy ('name')
-    .map (ev => ({
-      name: ev[0].name,
-      inputs: _.chain (ev)
-          .map (ev => ev.inputs)
-          .flattenDeep ()
-          .uniqBy ('name')
-          .value ()
-    })
+    .flatten()
+    .groupBy('name')
+    .map(ev => ({
+        name: ev[0].name,
+        inputs: _.chain(ev)
+          .map(ev => ev.inputs)
+          .flattenDeep()
+          .uniqBy('name')
+          .value()
+      })
     )
-    .transform ((result, ev) => { //build mongo model, based on event definition from abi
+    .transform((result, ev) => { //build mongo model, based on event definition from abi
 
-      result[ev.name] = mongoose.model (ev.name, new mongoose.Schema (
-        _.chain (ev.inputs)
-          .transform ((result, obj) => {
+      result[ev.name] = mongoose.model(ev.name, new mongoose.Schema(
+        _.chain(ev.inputs)
+          .transform((result, obj) => {
             result[obj.name] = {
-              type: new RegExp (/uint/).test (obj.type) ?
+              type: new RegExp(/uint/).test(obj.type) ?
                 Number : mongoose.Schema.Types.Mixed
             };
           }, {})
-          .merge ({
+          .merge({
             controlIndexHash: {type: String, unique: true, required: true},
             network: {type: String},
             created: {type: Date, required: true, default: Date.now}
           })
-          .value ()
+          .value()
       ));
     }, {})
-    .value ();
+    .value();
 };

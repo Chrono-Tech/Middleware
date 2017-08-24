@@ -2,6 +2,7 @@ const _ = require('lodash'),
   utils = require('web3/lib/utils/utils.js'),
   Web3 = require('web3'),
   web3 = new Web3(),
+  config = require('../../../config'),
   mongoose = require('mongoose');
 
 /**
@@ -22,13 +23,13 @@ module.exports = (contracts) => {
     .flatten()
     .groupBy('name')
     .map(ev => ({
-      name: ev[0].name,
-      inputs: _.chain(ev)
+        name: ev[0].name,
+        inputs: _.chain(ev)
           .map(ev => ev.inputs)
           .flattenDeep()
           .uniqBy('name')
           .value()
-    })
+      })
     )
     .transform((result, ev) => { //build mongo model, based on event definition from abi
 
@@ -43,7 +44,7 @@ module.exports = (contracts) => {
           .merge({
             controlIndexHash: {type: String, unique: true, required: true},
             network: {type: String},
-            created: {type: Date, required: true, default: Date.now}
+            created: {type: Date, required: true, default: Date.now, expires: config.smartContracts.events.ttl}
           })
           .value()
       ));

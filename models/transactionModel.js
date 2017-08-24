@@ -1,4 +1,5 @@
 const mongoose = require('mongoose'),
+  config = require('../config'),
   messages = require('../factories').messages.transactionMessageFactory;
 
 /** @model transactionModel
@@ -33,7 +34,7 @@ const Transaction = new mongoose.Schema({
     unique: true,
     required: true
   },
-  created: {type: Date, required: true, default: Date.now},
+  created: {type: Date, required: true, default: Date.now, expires: config.transactions.ttl},
 
 });
 
