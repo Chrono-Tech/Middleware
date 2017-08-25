@@ -42,12 +42,12 @@ const init = async () => {
       );
 
       await Promise.all(
-        filtered.balance.map(tx => tx.save().catch(() => {
+        filtered.txs.map(tx => tx.save().catch(() => {
         }))
       );
 
       await Promise.all(
-        _.chain(filtered.balance)
+        _.chain(filtered.txs)
           .map(tx =>
             [tx.from, tx.to].map(address =>
               eventsEmitterService(amqpInstance, `eth_transaction.${address}`, tx.payload)

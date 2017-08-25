@@ -23,7 +23,7 @@ module.exports = async (currentBlock, web3) => {
   let filteredEvents = await filterTxsBySMEventsService(txs, web3);
 
   return {
-    balance: filteredTxs,
+    txs: filteredTxs,
     events: filteredEvents
   };
 

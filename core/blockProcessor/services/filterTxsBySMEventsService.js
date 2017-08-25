@@ -4,7 +4,9 @@ const _ = require('lodash'),
   path = require('path'),
   contract = require('truffle-contract'),
   requireAll = require('require-all'),
-  fs = require('fs');
+  fs = require('fs'),
+  bunyan = require('bunyan'),
+  log = bunyan.createLogger({name: 'core.blockProcessor.services.filterTxsBySMEventsService'});
 
 let contracts = {},
   smEvents = {};
@@ -23,11 +25,17 @@ if (fs.existsSync(contractsPath) && config.smartContracts.events.listen) {
 
 module.exports = async (txs, web3) => {
 
-  if(!_.has(contracts, 'MultiEventsHistory'))
+  if (!_.has(contracts, 'MultiEventsHistory'))
     return [];
 
   contracts.MultiEventsHistory.setProvider(web3.currentProvider);
-  let multiAddress = await contracts.MultiEventsHistory.deployed();
+  let multiAddress = null;
+  try {
+    multiAddress = await contracts.MultiEventsHistory.deployed();
+  } catch (e) {
+    log.error(e);
+    return [];
+  }
 
   return _.transform(txs, (result, tx) => {
     if (_.get(tx, 'logs', []).length === 0)
@@ -48,9 +56,9 @@ module.exports = async (txs, web3) => {
             .pick(['event', 'args'])
             .merge({args: {controlIndexHash: `${ev.logIndex}:${ev.transactionHash}:${web3.sha3(config.web3.network)}`}})
             .thru(ev => ({
-              name: ev.event,
-              payload: new smEvents.eventModels[ev.event](_.merge(ev.args, {network: config.web3.network}))
-            })
+                name: ev.event,
+                payload: new smEvents.eventModels[ev.event](_.merge(ev.args, {network: config.web3.network}))
+              })
             )
             .value()
         );
