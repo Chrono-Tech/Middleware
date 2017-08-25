@@ -1,8 +1,8 @@
 const _ = require ('lodash'),
   path = require ('path'),
   express = require ('express'),
-  require_all = require ('require-all'),
-  routes = require_all ({
+  requireAll = require ('require-all'),
+  routes = requireAll ({
     dirname: path.join (__dirname),
     filter: /(.+Route)\.js$/
   });

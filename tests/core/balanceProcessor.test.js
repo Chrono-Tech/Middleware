@@ -10,7 +10,7 @@ const expect = require('chai').expect,
   Stomp = require('webstomp-client'),
   ctx = {};
 
-module.exports = (web3, contracts, smEvents) => {
+module.exports = (web3) => {
 
 
 
@@ -62,11 +62,6 @@ module.exports = (web3, contracts, smEvents) => {
         );
       })()
     ]);
-
-    console.log(data[0].fields.routingKey);
-    console.log(data[1].headers.destination);
-    //console.log(data[0].content.toString());
-    //console.log(data[1].body)
 
   });
 

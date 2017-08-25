@@ -36,7 +36,7 @@ module.exports = {
   },
   schedule: {
     job: process.env.SCHEDULE_JOB || '30 * * * * *',
-    check_time: parseInt(process.env.SCHEDULE_CHECK_TIME) || 0
+    checkTime: parseInt(process.env.SCHEDULE_CHECK_TIME) || 0
   },
   mongo: {
     uri: process.env.MONGO_URI || 'mongodb://localhost:27017/data'

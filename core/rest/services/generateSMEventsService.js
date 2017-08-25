@@ -1,5 +1,5 @@
 const _ = require('lodash'),
-  require_all = require('require-all'),
+  requireAll = require('require-all'),
   path = require('path'),
   fs = require('fs'),
   config = require('../../../config'),
@@ -11,7 +11,7 @@ let contracts = {};
 let contractsPath = path.join(__dirname, '../../../node_modules', 'chronobank-smart-contracts/build/contracts');
 
 if (fs.existsSync(contractsPath) && config.smartContracts.events.listen) {
-  contracts = require_all({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
+  contracts = requireAll({ //scan dir for all smartContracts, excluding emitters (except ChronoBankPlatformEmitter) and interfaces
     dirname: contractsPath,
     filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
     resolve: Contract => contract(Contract)
@@ -35,13 +35,13 @@ module.exports = () => {
     .flatten()
     .groupBy('name')
     .map(ev => ({
-        name: ev[0].name,
-        inputs: _.chain(ev)
+      name: ev[0].name,
+      inputs: _.chain(ev)
           .map(ev => ev.inputs)
           .flattenDeep()
           .uniqBy('name')
           .value()
-      })
+    })
     )
     .transform((result, ev) => { //build mongo model, based on event definition from abi
 

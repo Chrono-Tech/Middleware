@@ -10,12 +10,12 @@ module.exports = async (currentBlock, web3) => {
   if (block <= currentBlock)
     return Promise.reject({code: 0});
 
-  let raw_block = await Promise.promisify(web3.eth.getBlock)(currentBlock + 1, true);
+  let rawBlock = await Promise.promisify(web3.eth.getBlock)(currentBlock + 1, true);
 
-  if (!raw_block.transactions || _.isEmpty(raw_block.transactions))
+  if (!rawBlock.transactions || _.isEmpty(rawBlock.transactions))
     return Promise.reject({code: 2});
 
-  let txs = await Promise.map(raw_block.transactions, tx =>
+  let txs = await Promise.map(rawBlock.transactions, tx =>
     parseInt(tx.value) > 0 ?
       tx : Promise.promisify(web3.eth.getTransactionReceipt)(tx.hash), {concurrency: 1});
 

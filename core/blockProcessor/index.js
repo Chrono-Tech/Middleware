@@ -4,6 +4,7 @@ const mongoose = require('mongoose'),
   _ = require('lodash'),
   bunyan = require('bunyan'),
   Web3 = require('web3'),
+  web3Errors = require('web3/lib/web3/errors'),
   net = require('net'),
   amqp = require('amqplib'),
   log = bunyan.createLogger({name: 'app'}),
@@ -18,10 +19,6 @@ const mongoose = require('mongoose'),
 
 
 mongoose.connect(config.mongo.uri);
-
-//we expose network name to webworker from muster node
-
-//init contracts on the following network and fetch the latest block for this network from mongo
 
 const init = async () => {
 
@@ -79,7 +76,7 @@ const init = async () => {
       processBlock();
     } catch (err) {
 
-      if (_.has(err, 'cause') && err.cause.toString().includes('CONNECTION ERROR'))
+      if (_.has(err, 'cause') && err.toString() === web3Errors.InvalidConnection('on IPC').toString())
         return process.exit(-1);
 
       if (_.get(err, 'code') === 0) {

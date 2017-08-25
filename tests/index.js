@@ -47,8 +47,12 @@ describe('tests', function () {
     return mongoose.disconnect();
   });
 
- // describe('core/blockProcessor', () => coreTests.blockProcessor(web3, contracts, smEvents));
+  describe('core/blockProcessor', () => coreTests.blockProcessor(web3, contracts, smEvents));
 
-  describe('core/balanceProcessor', () => coreTests.balanceProcessor(web3, contracts, smEvents));
+  describe('core/balanceProcessor', () => coreTests.balanceProcessor(web3));
+
+  describe('core/rest', () => coreTests.rest(web3, smEvents));
+
+  describe('core/ipfs', coreTests.ipfs);
 
 });

@@ -10,4 +10,4 @@ const Pin = new mongoose.Schema({
   network: {type: String}
 });
 
-module.exports = mongoose.model('Pin', Pin);
+module.exports = mongoose.model('EthPin', Pin);

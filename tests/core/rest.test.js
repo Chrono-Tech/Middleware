@@ -2,23 +2,20 @@ const config = require('../../config'),
   _ = require('lodash'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
-  ipfsAPI = require('ipfs-api'),
+  accountModel = require('../../models/accountModel'),
+  expect = require('chai').expect,
   mongoose = require('mongoose'),
   request = require('request'),
   moment = require('moment'),
   ctx = {
-    events: {},
-    contracts_instances: {},
-    factory: {},
-    contracts: {},
-    web3: null
+    factory: {}
   };
 
-module.exports = (web3, contracts, smEvents) => {
+module.exports = (web3, smEvents) => {
 
-  test('validate all routes', () =>
+  it('validate all event routes', () =>
     Promise.all(
-      _.map(ctx.events.eventModels, (model, name) =>
+      _.map(smEvents.eventModels, (model, name) =>
         new Promise((res, rej) => {
           request(`http://localhost:${config.rest.port}/events/${name}`, (err, resp) => {
             err || resp.statusCode !== 200 ? rej(err) : res()
@@ -28,79 +25,48 @@ module.exports = (web3, contracts, smEvents) => {
     )
   );
 
-  test('add new loc', async () => {
-
-    const obj = {
-      Data: new Buffer(helpers.generateRandomString()),
-      Links: []
-    };
-    const ipfs_stack = config.nodes.map(node => ipfsAPI(node));
-
-    let data = await Promise.all(
-      _.chain(ipfs_stack)
-        .map(ipfs =>
-          ipfs.object.put(obj)
-        )
-        .value()
-    );
-
-    ctx.factory.Loc = {
-      name: helpers.bytes32(helpers.generateRandomString()),
-      website: helpers.bytes32("www.ru"),
-      issueLimit: 1000000,
-      hash: helpers.bytes32fromBase58(data[0].toJSON().multihash),
-      expDate: Math.round(+new Date() / 1000),
-      currency: helpers.bytes32('LHT'),
-      created: new Date()
-    };
-
-    let coinbase = await new Promise(res =>
-      ctx.web3.eth.getCoinbase((err, result) => res(result))
-    );
-
-    let result = await ctx.contracts_instances.LOCManager.addLOC(
-      ctx.factory.Loc.name,
-      ctx.factory.Loc.website,
-      ctx.factory.Loc.issueLimit,
-      ctx.factory.Loc.hash,
-      ctx.factory.Loc.expDate,
-      ctx.factory.Loc.currency,
-      {from: coinbase}
-    );
-
-    expect(result).toBeDefined();
-    expect(result.tx).toBeDefined();
-    expect(result.logs[0].args.locName).toBeDefined();
-    ctx.factory.Loc.encoded_name = result.logs[0].args.locName;
-
+  it('add account (if not exist) to mongo', async () => {
+    let accounts = await Promise.promisify(web3.eth.getAccounts)();
+    try{
+      await new accountModel({address: accounts[0]}).save();
+    }catch (e){}
   });
 
-  test('validate query language', async () => {
+
+  it('send some eth from 0 account to account 1', async () => {
+    let accounts = await Promise.promisify(web3.eth.getAccounts)();
+    ctx.hash = await Promise.promisify(web3.eth.sendTransaction)({
+      from: accounts[0],
+      to: accounts[1],
+      value: 100
+    });
+
+    expect(ctx.hash).to.be.string;
+  });
+
+  it('validate query language', async () => {
     await Promise.delay(10000);
 
+    let accounts = await Promise.promisify(web3.eth.getAccounts)();
     let data = await Promise.all(
       [
-        `locName=${ctx.factory.Loc.encoded_name}`,
-        `locName!=${ctx.factory.Loc.encoded_name}`,
-        `network=development`,
-        `created<${moment(ctx.factory.Loc.created).add(-5, 'minutes').toISOString()}`
+        `hash=${ctx.hash}`,
+        `hash!=${ctx.hash}`,
+        `to=${accounts[1]}`,
+        `created<${moment().add(-5, 'minutes').toISOString()}`
       ].map((query) =>
         new Promise((res, rej) =>
-          request(`http://localhost:${config.rest.port}/events/NewLOC?${query}`, (err, resp, body) => {
+          request(`http://localhost:${config.rest.port}/transactions?${query}`, (err, resp, body) => {
             err || resp.statusCode !== 200 ? rej(err) : res(JSON.parse(body))
           })
         )
       )
     );
 
-    let noItem = _.find(data[1], {locName: ctx.factory.Loc.encoded_name});
-    let networkItem = _.find(data[2], {locName: ctx.factory.Loc.encoded_name});
-    let createdItem = _.find(data[3], {locName: ctx.factory.Loc.encoded_name});
-
-    expect(data[0][0].locName).toEqual(ctx.factory.Loc.encoded_name);
-    expect(noItem).toBeUndefined();
-    expect(networkItem).toBeDefined();
-    expect(createdItem).toBeUndefined();
+    expect(data[0][0]).to.include({'hash': ctx.hash});
+    expect(data[1][0]).to.not.include({'hash': ctx.hash});
+    expect(data[2][0]).to.include({'to': accounts[1]});
+    expect(data[3]).to.have.lengthOf.above(0);
 
   });
 }

@@ -15,12 +15,12 @@ const schedule = require('node-schedule'),
 
 module.exports = (network) => {
 
-  const ipfs_stack = config.nodes.map(node => ipfsAPI(node));
+  const ipfsStack = config.nodes.map(node => ipfsAPI(node));
 
   schedule.scheduleJob(config.schedule.job, () => {
     pinModel.find({
       network: network,
-      updated: {$lt: new Date(new Date() - config.schedule.check_time * 1000)}
+      updated: {$lt: new Date(new Date() - config.schedule.checkTime * 1000)}
     })
       .then(records =>
         Promise.all(
@@ -28,7 +28,7 @@ module.exports = (network) => {
             .filter(r => r.hash)
             .map(r =>
               Promise.all(
-                ipfs_stack.map(ipfs =>
+                ipfsStack.map(ipfs =>
                   Promise.delay(1000)
                     .then(() => ipfs.pin.add(r.hash))
                     .timeout(30000)
