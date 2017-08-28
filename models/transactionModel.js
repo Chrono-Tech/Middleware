@@ -34,6 +34,7 @@ const Transaction = new mongoose.Schema({
     unique: true,
     required: true
   },
+  logs: [{type: mongoose.Schema.Types.Mixed}],
   created: {type: Date, required: true, default: Date.now, expires: config.transactions.ttl},
 
 });

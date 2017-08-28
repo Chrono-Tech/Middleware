@@ -34,35 +34,29 @@ const init = async () => {
 
   let processBlock = async () => {
     try {
-      let filtered = await blockProcessService(currentBlock, web3);
+      let filteredTxs = await blockProcessService(currentBlock, web3);
+
 
       await Promise.all(
-        filtered.events.map(ev => ev.payload.save().catch(() => {
+        filteredTxs.map(tx => tx.save().catch(() => {
         }))
       );
 
       await Promise.all(
-        filtered.txs.map(tx => tx.save().catch(() => {
-        }))
-      );
-
-      await Promise.all(
-        _.chain(filtered.txs)
+        _.chain(filteredTxs)
           .map(tx =>
-            [tx.from, tx.to].map(address =>
-              eventsEmitterService(amqpInstance, `eth_transaction.${address}`, tx.payload)
-                .catch(() => {
-                })
-            )
+            _.chain([tx.to, tx.from])
+              .union(tx.logs.map(log => log.address))
+              .uniq()
+              .map(address =>
+                eventsEmitterService(amqpInstance, `eth_transaction.${address}`, tx.payload)
+                  .catch(() => {
+                  })
+              )
+              .value()
           )
           .flattenDeep()
           .value()
-      );
-
-      await Promise.all(
-        filtered.events.map(event =>
-          eventsEmitterService(amqpInstance, `eth_${event.name.toLowerCase()}`, event.payload.controlIndexHash)
-        )
       );
 
       await blockModel.findOneAndUpdate({network: config.web3.network}, {
@@ -75,7 +69,6 @@ const init = async () => {
       currentBlock++;
       processBlock();
     } catch (err) {
-
       if (_.has(err, 'cause') && err.toString() === web3Errors.InvalidConnection('on IPC').toString())
         return process.exit(-1);
 

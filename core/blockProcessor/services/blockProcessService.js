@@ -1,7 +1,6 @@
 const _ = require('lodash'),
   Promise = require('bluebird'),
-  filterTxsByAccountService = require('./filterTxsByAccountService'),
-  filterTxsBySMEventsService = require('./filterTxsBySMEventsService');
+  filterTxsByAccountService = require('./filterTxsByAccountService');
 
 module.exports = async (currentBlock, web3) => {
 
@@ -15,16 +14,17 @@ module.exports = async (currentBlock, web3) => {
   if (!rawBlock.transactions || _.isEmpty(rawBlock.transactions))
     return Promise.reject({code: 2});
 
-  let txs = await Promise.map(rawBlock.transactions, tx =>
-    parseInt(tx.value) > 0 ?
-      tx : Promise.promisify(web3.eth.getTransactionReceipt)(tx.hash), {concurrency: 1});
+  let txsReceipts = await Promise.map(rawBlock.transactions, tx =>
+    Promise.promisify(web3.eth.getTransactionReceipt)(tx.hash), {concurrency: 1});
 
-  let filteredTxs = await filterTxsByAccountService(txs);
-  let filteredEvents = await filterTxsBySMEventsService(txs, web3);
+  rawBlock.transactions = rawBlock.transactions.map(tx => {
+    tx.logs = _.chain(txsReceipts)
+      .find({transactionHash: tx.hash})
+      .get('logs', [])
+      .value();
+    return tx;
+  });
 
-  return {
-    txs: filteredTxs,
-    events: filteredEvents
-  };
+  return await filterTxsByAccountService(rawBlock.transactions);
 
 };

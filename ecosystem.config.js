@@ -10,8 +10,6 @@ module.exports = {
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
         RABBIT_URI: 'amqp://localhost:5672',
-        SMART_CONTRACTS_EVENTS_LISTEN: 1,
-        SMART_CONTRACTS_EVENTS_TTL: 0,
         TRANSACTION_TTL: 0,
         NETWORK: 'development'
       }
@@ -42,6 +40,16 @@ module.exports = {
         IPFS_NODES: 'http://localhost:5001',
         SCHEDULE_JOB: '30 * * * * *',
         SCHEDULE_CHECK_TIME: 0
+      }
+    },
+    {
+      name: 'chrono_sc_processor',
+      script: 'core/chronoSCProcessor',
+      env: {
+        MONGO_URI: 'mongodb://localhost:27017/data',
+        RABBIT_URI: 'amqp://localhost:5672',
+        SMART_CONTRACTS_EVENTS_TTL: 0,
+        NETWORK: 'development'
       }
     }
   ]

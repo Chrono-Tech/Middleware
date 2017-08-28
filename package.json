@@ -7,12 +7,12 @@
     "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
     "test": "node ./node_modules/mocha/bin/mocha -t 90000 tests",
     "testrpc": "node ./ipcConverter.js",
-    "install:contracts": "npm install chronobank-smart-contracts@1.1.35",
     "deploy:contracts": "cd node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled.js migrate",
     "install:rest": "npm install core/rest",
     "install:ipfs": "npm install core/ipfs",
     "install:block_processor": "npm install core/blockProcessor",
     "install:balance_processor": "npm install core/balanceProcessor",
+    "install:chrono_sc_processor": "npm install core/chronoSCProcessor",
     "cluster": "pm2 start pm2 start ecosystem.config.js"
   },
   "author": "",

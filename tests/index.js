@@ -18,7 +18,7 @@ const config = require('../config'),
   }),
   Web3 = require('web3'),
   web3 = new Web3(),
-  smEvents = require('../core/blockProcessor/controllers/eventsCtrl')(contracts),
+  smEvents = require('../core/chronoSCProcessor/controllers/eventsCtrl')(contracts),
   mongoose = require('mongoose');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';

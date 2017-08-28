@@ -7,7 +7,9 @@ module.exports = async (txs) => {
   let accounts = await accountModel.find({
     address: {
       $in: _.chain(txs)
-        .map(tx => [tx.to, tx.from])
+        .map(tx =>
+          _.union(tx.logs.map(log => log.address), [tx.to, tx.from])
+        )
         .flattenDeep()
         .uniq()
         .value()
@@ -17,9 +19,13 @@ module.exports = async (txs) => {
   accounts = _.map(accounts, account => account.address);
 
   return _.chain(txs)
-    .filter(tx =>
-      (accounts.includes(tx.to) || accounts.includes(tx.from)) && parseInt(tx.value) > 0
-    )
+    .filter(tx => {
+      let emittedAccounts = _.union(tx.logs.map(log => log.address), [tx.to, tx.from]);
+
+      return _.find(accounts, account =>
+        emittedAccounts.includes(account)
+      );
+    })
     .map(tx => {
       tx.value = parseInt(tx.value);
       tx.blockNumber = parseInt(tx.blockNumber, 16);
