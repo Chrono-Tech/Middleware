@@ -65,7 +65,7 @@ So, when someone, for instance do a transaction (sample from web3 console):
 /* eth.accounts[0] - "0x1cc5ceebda535987a4800062f67b9b78be0ef419" */
 eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 200})
 ```
-this tx is going to be included in next blocks. Block parser fetch these blocks, and filter by "to" and "from" recipients.
+this tx is going to be included in next blocks. Block parser fetch these blocks, and filter by "to" and "from" recipients, or by addresses from logs (in case we want to catch event).
 If one of them is presented in ethaccounts collection in mongo, then this transaction will be saved in "ethtransactions" collection.
 ```
 {
@@ -77,7 +77,23 @@ If one of them is presented in ethaccounts collection in mongo, then this transa
     "from" : "0x1cc5ceebda535987a4800062f67b9b78be0ef419",
     "to" : "0x48bf12c5650d87007b81e2b1a91bdf6e3d6ede03",
     "value" : "200",
-    "created" : ISODate("2017-08-25T08:04:57.389Z")
+    "created" : ISODate("2017-08-25T08:04:57.389Z"),
+        "logs" : [
+        {
+            "type" : "mined",
+            "topics" : [
+                "0xd03c2206e12a8eb3553d780874e1a7941b9c67f3a726ce6edb4a9fd65e25ec98",
+                "0x4c48540000000000000000000000000000000000000000000000000000000000"
+            ],
+            "data" : "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000004720d48945567aae0d30996288a7d150cad4486a",
+            "address" : "0x0c2f47f14e597b914479f7301455b590471b70b2",
+            "blockNumber" : 16,
+            "blockHash" : "0x69a00a0a08165a86fe76c3a3074909d7d5fc9a382cb0b74bf5083bd1e20073cd",
+            "transactionHash" : "0xdfe76fd315f15cf94e715307772063cb1775d41be39d52ad22eae3118b9862c3",
+            "transactionIndex" : 0,
+            "logIndex" : 0
+        }
+    ],
 }
 ```
 
@@ -104,21 +120,19 @@ All in all, in order to be subscribed, you need to do the following:
 But be aware of it - when a new tx arrives, the block processor sends 2 messages for the same one transaction - for both addresses, who participated in transaction (from and to recepients). The sent message represent the payload field from transaction object (by this unique field you can easely fetch the raw transaction from mongodb for your own purpose).
 
 
-What about smart contracts?
+##### chronoSC processor
 
-Optionaly, you also can catch events, emitted on smart contracts from chronobank. In order to use this feature, you have to install contracts first:
+The crono smart contracts (SC) processor is responsible for handling events, emitted on chonobank platform.
+In order to install it, type:
 ```
-npm run install:contracts
+npm run install:chrono_sc_processor
 ```
-In case, they are not deployed to the specified network, then you do it with:
-```
-npm run deploy:contracts
-```
-But make sure, that you have RPC enabled on your node, it running on default 8545 port, and coinbase account is unlocked.
-Also, you need to enable this feature in config (see configuration section).
 
-The flow with events on smart contracts is the same, as for the transaction: during block parsing, block processor use a special filter, which checks logs of the block, and compare addreses and signatures in logs with addresses and signatures of presented events in smart contracts (compare by their definitions). In case, he found smth - it wwill be saved to a collection, named by event name.
-For instance, we have an event called 'Tranfer'. When a new event is emitted, block processor catch it, and save to a collection 'transfers'. Also, block parser send notification via rabbitmq, with the routing key, named as event, but with lowercase - in our case 'transfer', and message - are the raw event's arguments, passed to event.
+This how does it work:
+1) this module register multiAddress (from which events are emitted on chonibank smart contracts) in database in EthAccounts collection
+2) blockprocessor filter transactions by tx.to, tx.from and addresses in logs.
+3) chronoSc processor catch a new tx through rabbitmq, fetch this tx from db and parse it
+4) if he find smth inside logs, then chronoSc decode its definition and save to a propriate collection (called by event's name). For instance, we have an event called 'Tranfer'. When a new event is emitted, chronoSc processor catch it, and save to a collection 'transfers'. Also, chronoSc parser send notification via rabbitmq, with the routing key, named as event, but with lowercase - in our case 'transfer', and message - are the raw event's arguments, passed to event.
 
 
 ##### Balance processor
@@ -197,7 +211,6 @@ The options are presented below:
 | SCHEDULE_JOB   | a configuration for ipfs pin plugin in a cron based format
 | SCHEDULE_CHECK_TIME   | an option, which defines how old should be records, which have to be pinned
 | RABBIT_URI   | rabbitmq URI connection string
-| SMART_CONTRACTS_EVENTS_LISTEN   | listen to smart contracts - can be 1 or 0
 | SMART_CONTRACTS_EVENTS_TTL   | how long should we keep events in db (should be set in seconds)
 | TRANSACTION_TTL   | how long should we keep transactions in db (should be set in seconds)
 | NETWORK   | network name (alias)- is used for connecting via ipc (see block processor section)
@@ -226,8 +239,8 @@ module.exports = {
       name: 'block_processor',
       script: 'core/blockProcessor',
       env: {
-        MONGO_URI: 'mongodb://localhost:32772/data',
-        RABBIT_URI: 'amqp://localhost:32769',
+        MONGO_URI: 'mongodb://localhost:27017/data',
+        RABBIT_URI: 'amqp://localhost:5672',
         SMART_CONTRACTS_EVENTS_LISTEN: 1,
         SMART_CONTRACTS_EVENTS_TTL: 0,
         TRANSACTION_TTL: 0,
@@ -238,15 +251,15 @@ module.exports = {
       name: 'balance_processor',
       script: 'core/balanceProcessor',
       env: {
-        MONGO_URI: 'mongodb://localhost:32772/data',
-        RABBIT_URI: 'amqp://localhost:32769'
+        MONGO_URI: 'mongodb://localhost:27017/data',
+        RABBIT_URI: 'amqp://localhost:5672'
       }
     },
     {
       name: 'rest',
       script: 'core/rest',
       env: {
-        MONGO_URI: 'mongodb://localhost:32772/data',
+        MONGO_URI: 'mongodb://localhost:27017/data',
         REST_PORT: 8081,
         SMART_CONTRACTS_EVENTS_LISTEN: 1
       }
@@ -255,9 +268,9 @@ module.exports = {
       name: 'ipfs',
       script: 'core/ipfs',
       env: {
-        MONGO_URI: 'mongodb://localhost:32772/data',
-        RABBIT_URI: 'amqp://localhost:32769',
-        IPFS_NODES: 'http://localhost:32771',
+        MONGO_URI: 'mongodb://localhost:27017/data',
+        RABBIT_URI: 'amqp://localhost:5672',
+        IPFS_NODES: 'http://localhost:5001',
         SCHEDULE_JOB: '30 * * * * *',
         SCHEDULE_CHECK_TIME: 0
       }
