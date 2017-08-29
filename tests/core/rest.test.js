@@ -53,7 +53,7 @@ module.exports = (web3, smEvents) => {
         `hash=${ctx.hash}`,
         `hash!=${ctx.hash}`,
         `to=${accounts[1]}`,
-        `created<${moment().add(-5, 'minutes').toISOString()}`
+        `created>${moment().add(-30, 'minutes').toISOString()}`
       ].map((query) =>
         new Promise((res, rej) =>
           request(`http://localhost:${config.rest.port}/transactions?${query}`, (err, resp, body) => {
