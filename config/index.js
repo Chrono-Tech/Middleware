@@ -1,6 +1,5 @@
 require('dotenv').config();
-const truffle_config = require('chronobank-smart-contracts/truffle.js'),
-  url = require('url'),
+const url = require('url'),
   _ = require('lodash');
 
 /**
@@ -31,15 +30,31 @@ module.exports = {
     })
     .value() :
     [{'host': 'localhost', 'port': '5001', 'protocol': 'http'}],
-  web3: truffle_config,
+  web3: {
+    network: process.env.NETWORK || 'development',
+    uri: `${/^win/.test (process.platform) ? '\\\\.\\pipe\\' : '/tmp/'}${process.env.NETWORK || 'development'}/geth.ipc`
+  },
   schedule: {
     job: process.env.SCHEDULE_JOB || '30 * * * * *',
-    check_time: parseInt(process.env.SCHEDULE_CHECK_TIME) || 0
+    checkTime: parseInt(process.env.SCHEDULE_CHECK_TIME) || 0
   },
   mongo: {
     uri: process.env.MONGO_URI || 'mongodb://localhost:27017/data'
   },
   rest: {
-    port: process.env.REST_PORT || 8081
+    domain: process.env.DOMAIN || 'localhost',
+    port: parseInt(process.env.REST_PORT) || 8081
+  },
+  rabbit: {
+    url: process.env.RABBIT_URI || 'amqp://localhost:5672'
+  },
+  smartContracts: {
+    events: {
+      listen: parseInt(process.env.SMART_CONTRACTS_EVENTS_LISTEN) || false,
+      ttl: parseInt(process.env.SMART_CONTRACTS_EVENTS_TTL) || false
+    }
+  },
+  transactions: {
+    ttl: parseInt(process.env.TRANSACTION_TTL) || false
   }
 };
