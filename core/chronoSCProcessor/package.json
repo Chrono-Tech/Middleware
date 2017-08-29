@@ -16,7 +16,7 @@
     "chronobank-smart-contracts": "1.1.35"
   },
   "scripts": {
-    "deploy:contracts": "cd node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled.js migrate"
+    "deploy:contracts": "cd ../../node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled.js migrate"
   },
   "author": "",
   "license": "ISC",
