@@ -1,42 +1,33 @@
 {
-  "name": "ipfs_eth_daemon",
+  "name": "middleware",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
-    "test": "node ./node_modules/jest/bin/jest.js test --coverage --runInBand",
-    "testrpc": "node ./ipcConverter.js | node ./node_modules/ethereumjs-testrpc/bin/testrpc",
-    "prepare_linux": "bash prepare_env_linux.sh",
-    "prepare_linux_install": "bash prepare_env_linux.sh --install",
-    "prepare_win": "prepare_env_win.bat",
-    "prepare_win_install": "prepare_env_win.bat --install"
+    "test": "node ./node_modules/mocha/bin/mocha -t 90000 tests",
+    "testrpc": "node ./ipcConverter.js",
+    "deploy:contracts": "cd node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled.js migrate",
+    "install:rest": "npm install core/rest",
+    "install:ipfs": "npm install core/ipfs",
+    "install:block_processor": "npm install core/blockProcessor",
+    "install:balance_processor": "npm install core/balanceProcessor",
+    "install:chrono_sc_processor": "npm install core/chronoSCProcessor",
+    "cluster": "pm2 start pm2 start ecosystem.config.js"
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "abi-decoder": "^1.0.8",
-    "bunyan": "^1.8.10",
-    "chronobank-smart-contracts": "git+https://github.com/ChronoBank/SmartContracts.git#develop",
-    "dotenv": "^4.0.0",
-    "express": "^4.15.3",
-    "ipfs-api": "^14.0.2",
-    "lodash": "^4.17.4",
-    "mongoose": "^4.10.4",
-    "node-schedule": "^1.2.3",
-    "query-to-mongo": "^0.6.2",
-    "query-to-mongo-and-back": "git+https://github.com/ega-forever/query-to-mongo-and-back.git#develop",
-    "require-all": "^2.2.0",
-    "truffle-contract": "^2.0.0",
-    "web3": "^0.19.0"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "chai": "^4.1.1",
     "coveralls": "^2.13.1",
     "cron-parser": "^2.4.0",
     "eslint": "^3.19.0",
     "ethereumjs-testrpc": "mikefluff/testrpc",
-    "jest": "^20.0.4",
+    "mocha": "^3.5.0",
     "moment": "^2.18.1",
-    "request": "^2.81.0"
+    "request": "^2.81.0",
+    "sockjs-client": "^1.1.4",
+    "webstomp-client": "^1.0.6"
   }
 }

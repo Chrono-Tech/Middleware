@@ -10,4 +10,4 @@ const Block = new mongoose.Schema({
 
 });
 
-module.exports = mongoose.model('Block', Block);
+module.exports = mongoose.model('EthBlock', Block);

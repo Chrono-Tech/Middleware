@@ -3,9 +3,11 @@ dist: trusty
 os: linux
 group: stable
 language: node_js
-node_js: 6.10.3
+node_js: 7.6.0
 
-services: mongodb
+services:
+  - mongodb
+  - rabbitmq
 
 before_install:
   - mongo data --eval 'db.dropDatabase();'
@@ -17,13 +19,20 @@ before_install:
   - ipfs init
 
 install:
+  - sudo rabbitmq-plugins enable rabbitmq_web_stomp
   - npm install
+  - npm install -g pm2
+  - npm run install:rest
+  - npm run install:ipfs
+  - npm run install:block_processor
+  - npm run install:balance_processor
+  - npm run install:chrono_sc_processor
 
 before_script:
     - ipfs daemon > /dev/null &
     - npm run testrpc > /dev/null &
-    - sleep 5 && npm run prepare_linux_install
-    - node . > /dev/null &
+    - cd core/chronoSCProcessor && npm run deploy:contracts && cd ../../
+    - pm2 start ecosystem.config.js
 
 script:
   - sleep 120 && npm test -- --coverage
