@@ -7,7 +7,6 @@
     "lint": "node ./node_modules/eslint/bin/eslint.js -c .eslintrc.js --ext .js --fix --ignore-path .eslintignore .",
     "test": "node ./node_modules/mocha/bin/mocha -t 90000 tests",
     "testrpc": "node ./ipcConverter.js",
-    "deploy:contracts": "cd node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled.js migrate",
     "cluster": "pm2 start pm2 start ecosystem.config.js"
   },
   "author": "",
