@@ -1,5 +1,5 @@
 const mongoose = require('mongoose'),
-  config = require('../config'),
+  config = require('../../config'),
   messages = require('../factories').messages.transactionMessageFactory;
 
 /** @model transactionModel
