@@ -8,11 +8,6 @@
     "test": "node ./node_modules/mocha/bin/mocha -t 90000 tests",
     "testrpc": "node ./ipcConverter.js",
     "deploy:contracts": "cd node_modules/chronobank-smart-contracts && node ../truffle/build/cli.bundled.js migrate",
-    "install:rest": "npm install core/rest",
-    "install:ipfs": "npm install core/ipfs",
-    "install:block_processor": "npm install core/blockProcessor",
-    "install:balance_processor": "npm install core/balanceProcessor",
-    "install:chrono_sc_processor": "npm install core/chronoSCProcessor",
     "cluster": "pm2 start pm2 start ecosystem.config.js"
   },
   "author": "",

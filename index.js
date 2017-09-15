@@ -1,11 +1,10 @@
 const _ = require('lodash'),
   Promise = require('bluebird'),
   chalk = require('chalk'),
-  minimist = require('minimist'),
   inquirer = require('inquirer'),
   gitDownload = require('download-git-repo'),
   download = Promise.promisify(gitDownload),
-  { execSync } = require('child_process');
+  { execSync } = require('child_process'),
   config = require('./config');
 
 const setup = [{
@@ -21,7 +20,7 @@ inquirer.prompt(setup)
 function loadModules(choices) {
   const modules = _.filter(config.modules, m => choices.indexOf(m.name) !== -1);
   Promise.each(modules, getRepo)
-    .then(m => console.log(chalk.green(`Installed these modules ${choices}`)))
+    .then(() => console.log(chalk.green(`Installed these modules ${choices}`)))
     .catch(err => console.error(err));
 }
 
@@ -31,7 +30,7 @@ async function getRepo(module) {
 
   console.log(chalk.blue(`Downloading module ${moduleName}`));
   return download(module.url, moduleName)
-    .then(r => {
+    .then(() => {
       process.chdir(`${currentDir}/${moduleName}`);
       console.log(chalk.blue('Installing it\'s dependencies ...'));
       execSync('npm i');
