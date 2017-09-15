@@ -2,7 +2,7 @@ const config = require('../../config'),
   _ = require('lodash'),
   Promise = require('bluebird'),
   helpers = require('../helpers'),
-  accountModel = require('../../models/accountModel'),
+  accountModel = require('../models/accountModel'),
   expect = require('chai').expect,
   mongoose = require('mongoose'),
   request = require('request'),
@@ -53,7 +53,7 @@ module.exports = (web3, smEvents) => {
         `hash=${ctx.hash}`,
         `hash!=${ctx.hash}`,
         `to=${accounts[1]}`,
-        `created<${moment().add(-5, 'minutes').toISOString()}`
+        `created>${moment().add(-30, 'minutes').toISOString()}`
       ].map((query) =>
         new Promise((res, rej) =>
           request(`http://localhost:${config.rest.port}/transactions?${query}`, (err, resp, body) => {
