@@ -41,10 +41,6 @@ module.exports = {
   mongo: {
     uri: process.env.MONGO_URI || 'mongodb://localhost:27017/data'
   },
-  rest: {
-    domain: process.env.DOMAIN || 'localhost',
-    port: parseInt(process.env.REST_PORT) || 8081
-  },
   rabbit: {
     url: process.env.RABBIT_URI || 'amqp://localhost:5672'
   },
@@ -56,5 +52,27 @@ module.exports = {
   },
   transactions: {
     ttl: parseInt(process.env.TRANSACTION_TTL) || false
-  }
+  },
+  modules: [
+    {
+      name: 'middleware-eth-blockprocessor',
+      url: 'ChronoBank/middleware-eth-blockprocessor'
+    },
+    {
+      name: 'middleware-eth-rest',
+      url: 'ChronoBank/middleware-eth-rest'
+    },
+    {
+      name: 'middleware-eth-ipfs',
+      url: 'ChronoBank/middleware-eth-ipfs'
+    },
+    {
+      name: 'middleware-eth-chrono-sc-processor',
+      url: 'ChronoBank/middleware-eth-chrono-sc-processor'
+    },
+    {
+      name: 'middleware-eth-balance-processor',
+      url: 'ChronoBank/middleware-eth-balance-processor'
+    }
+  ]
 };
