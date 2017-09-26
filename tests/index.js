@@ -1,58 +1,28 @@
-require('dotenv/config');
-
-const config = require('../config'),
-  helpers = require('./helpers'),
-  net = require('net'),
-  path = require('path'),
-  require_all = require('require-all'),
-  coreTests = require_all({
-    dirname: path.join(__dirname, 'core'),
-    filter: /(.+test)\.js$/,
-    map: name => name.replace('.test', '')
-  }),
-  contract = require('truffle-contract'),
-  contracts = require_all({
-    dirname: path.join(__dirname, '../node_modules', 'chronobank-smart-contracts/build/contracts'),
-    filter: /(^((ChronoBankPlatformEmitter)|(?!(Emitter|Interface)).)*)\.json$/,
-    resolve: Contract => contract(Contract)
-  }),
-  Web3 = require('web3'),
-  web3 = new Web3(),
-  smEvents = require('../core/chronoSCProcessor/controllers/eventsCtrl')(contracts),
-  mongoose = require('mongoose');
-
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const spawn = require('child_process').spawn,
+  config = require('../config'),
+  fs = require('fs'),
+  _ = require('lodash'),
+  expect = require('chai').expect,
+  path = require('path');
 
 describe('tests', function () {
 
-  before(async () => {
-    let provider = new Web3.providers.IpcProvider(config.web3.uri, net);
-    web3.setProvider(provider);
-    mongoose.connect(config.mongo.uri);
-    for (let contract_name in contracts)
-      if (contracts.hasOwnProperty(contract_name)) {
-        try {
-          contracts[contract_name].setProvider(provider);
-          contracts[`${contract_name}Instance`] = await contracts[contract_name].deployed();
-        } catch (e) {
-
-        }
-      }
-
-    return await helpers.awaitLastBlock(web3);
+  it('install all repos', async () => {
+    await new Promise((res, rej) =>
+      spawn('node', _.union(['.'], config.modules.map(m => m.name)), {
+        stdio: 'inherit',
+        shell: true
+      })
+        .on('error', rej)
+        .on('close', res)
+    );
   });
 
-  after(() => {
-    web3.currentProvider.connection.end();
-    return mongoose.disconnect();
-  });
 
-  describe('core/blockProcessor', () => coreTests.blockProcessor(web3, contracts, smEvents));
+  it('should check, that all modules are installed', ()=>{
+    let checked = config.modules.filter(app => fs.existsSync(path.join('core', app.name)));
+    expect(checked.length).to.equal(config.modules.length);
+  })
 
-  describe('core/balanceProcessor', () => coreTests.balanceProcessor(web3));
-
-  describe('core/rest', () => coreTests.rest(web3, smEvents));
-
-  describe('core/ipfs', coreTests.ipfs);
 
 });
