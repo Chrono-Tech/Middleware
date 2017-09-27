@@ -5,33 +5,15 @@ group: stable
 language: node_js
 node_js: 7.6.0
 
-services:
-  - mongodb
-  - rabbitmq
-
 before_install:
-  - mongo data --eval 'db.dropDatabase();'
   - sudo apt-get update
   - sudo apt-get install wget python2.7 git-all pkg-config libncurses5-dev libssl-dev libnss3-dev libexpat-dev libc6-dev -y
-  - wget https://dist.ipfs.io/go-ipfs/v0.4.9/go-ipfs_v0.4.9_linux-amd64.tar.gz -O ipfs.tar.gz
-  - tar xvfz ipfs.tar.gz
-  - sudo mv go-ipfs/ipfs /usr/local/bin/ipfs
-  - ipfs init
 
 install:
-  - sudo rabbitmq-plugins enable rabbitmq_web_stomp
   - npm install
   - npm install -g pm2
-  - npm run install:rest
-  - npm run install:ipfs
-  - npm run install:block_processor
-  - npm run install:balance_processor
-  - npm run install:chrono_sc_processor
 
 before_script:
-    - ipfs daemon > /dev/null &
-    - npm run testrpc > /dev/null &
-    - cd core/chronoSCProcessor && npm run deploy:contracts && cd ../../
     - pm2 start ecosystem.config.js
 
 script:
