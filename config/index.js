@@ -73,6 +73,10 @@ module.exports = {
     {
       name: 'middleware-eth-balance-processor',
       url: 'ChronoBank/middleware-eth-balance-processor'
+    },
+    {
+      name: 'middleware-erc20-token-processor',
+      url: 'ChronoBank/middleware-eth-erc20'
     }
   ]
 };
