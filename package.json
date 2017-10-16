@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bluebird": "^3.5.1",
     "bunyan": "^1.8.12",
     "chalk": "^2.1.0",
     "download-git-repo": "^1.0.1",
