@@ -1,8 +1,8 @@
-# Middleware [![Build Status](https://travis-ci.org/ega-forever/Middleware.svg?branch=master)](https://travis-ci.org/ega-forever/Middleware)
+# Middleware [![Build Status](https://travis-ci.org/ChronoBank/Middleware.svg?branch=master)](https://travis-ci.org/ChronoBank/Middleware)
 
 Middleware service installer
 
-###Installation
+### Installation
 
 After cloning repo, do:
 ```
@@ -25,18 +25,13 @@ node . middleware-eth-blockprocessor middleware-eth-rest
 ```
 
 ### Modules
-The middleware consists of 4 core modules (for the moment, they are shipped by default in one package, but will be moved
+The middleware consists of 6 core modules (for the moment, they are shipped by default in one package, but will be moved
 in separate packages in the nearest future).
 
 ##### Block processor
 This module is used for processing incoming blocks from node (geth/parity). The iteraction with node happens via IPC interface. In order to install this module, you should сheck 'middleware-eth-blockprocessor' in cli menu during installation.
 
-Also, make sure, you have a running client (geth/parity) with IPC interface enabled. The rule, of how to correctly form IPC path and name:
-
-Fow windows - directory doesn't matter (as it will use virtual endpoint). As for Unix/Linux - the path looks like so:
-```
-/tmp/{network_name}/geth.ipc
-```
+Also, make sure, you have a running client (geth/parity) with IPC interface enabled. The path to ipc could be specified with WEB3_URI.
 
 here is an expample with running geth with ipc, where network_name=development:
 ```
@@ -78,6 +73,12 @@ middleware-eth-ipfs
 ```
 
 
+##### ERC20Token
+The ERC20Token is a module for tracking erc20Tokens balances. You can add it by checking this option in cli:
+```
+middleware-eth-erc20
+```
+
 ### Configure
 There are 2 possible scenarious of running the middleware modules:
 
@@ -91,12 +92,12 @@ MONGO_URI=mongodb://localhost:27017/data
 REST_PORT=8081
 IPFS_NODES=http://localhost:5001, http://localhost:5001
 SCHEDULE_JOB=30 * * * * *
-SCHEDULE_CHECK_TIME=0
+RABBIT_SERVICE_NAME=app_eth
 RABBIT_URI=amqp://localhost:5672
-SMART_CONTRACTS_EVENTS_LISTEN=1
 SMART_CONTRACTS_EVENTS_TTL=0
-TRANSACTION_TTL=0
+SM_EVENTS=setHash:newHash:oldHash
 NETWORK=development
+WEB3_URI=/tmp/development/geth.ipc
 ```
 
 The options are presented below:
@@ -107,11 +108,12 @@ The options are presented below:
 | REST_PORT   | rest plugin port
 | IPFS_NODES   | should contain a comma separated uri connection strings for ipfs nodes
 | SCHEDULE_JOB   | a configuration for ipfs pin plugin in a cron based format
-| SCHEDULE_CHECK_TIME   | an option, which defines how old should be records, which have to be pinned
+| RABBIT_SERVICE_NAME   | namespace for all rabbitmq queues, like 'app_eth_transaction'
 | RABBIT_URI   | rabbitmq URI connection string
 | SMART_CONTRACTS_EVENTS_TTL   | how long should we keep events in db (should be set in seconds)
-| TRANSACTION_TTL   | how long should we keep transactions in db (should be set in seconds)
+| SM_EVENTS   | smart contract's event definition for hash create/update (ipfs multihash). Has the following signature: 'event_name:new_hash_field:old_hash_field'. 3 argument (old_hash_field) is optional
 | NETWORK   | network name (alias)- is used for connecting via ipc (see block processor section)
+| WEB3_URI   | the path to ipc interface
 
 In this case, you should run the processes from the root folder, like that:
 ```
@@ -127,20 +129,16 @@ npm install -g pm2
 
 And edit the ecosystem.config.js according your needs:
 ```
-module.exports = {
-  /**
-   * Application configuration section
-   * http://pm2.keymetrics.io/docs/usage/application-declaration/
-   */
-  apps = [
+apps = [
     {
       name: 'block_processor',
       script: 'core/middleware-eth-blockprocessor',
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
         RABBIT_URI: 'amqp://localhost:5672',
-        TRANSACTION_TTL: 0,
-        NETWORK: 'development'
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -148,7 +146,10 @@ module.exports = {
       script: 'core/middleware-eth-balance-processor',
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
-        RABBIT_URI: 'amqp://localhost:5672'
+        RABBIT_URI: 'amqp://localhost:5672',
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -157,7 +158,8 @@ module.exports = {
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
         REST_PORT: 8081,
-        SMART_CONTRACTS_EVENTS_LISTEN: 1
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -166,9 +168,10 @@ module.exports = {
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
         RABBIT_URI: 'amqp://localhost:5672',
+        RABBIT_SERVICE_NAME: 'app_eth',
         IPFS_NODES: 'http://localhost:5001',
         SCHEDULE_JOB: '30 * * * * *',
-        SCHEDULE_CHECK_TIME: 0
+        SM_EVENTS: 'setHash:newHash:oldHash'
       }
     },
     {
@@ -178,7 +181,20 @@ module.exports = {
         MONGO_URI: 'mongodb://localhost:27017/data',
         RABBIT_URI: 'amqp://localhost:5672',
         SMART_CONTRACTS_EVENTS_TTL: 0,
-        NETWORK: 'development'
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
+      }
+    },
+    {
+      name: 'erc20_processor',
+      script: 'core/middleware-eth-erc20',
+      env: {
+        MONGO_URI: 'mongodb://localhost:27017/data',
+        RABBIT_URI: 'amqp://localhost:5672',
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     }
   ];
