@@ -8,7 +8,7 @@ const fs = require('fs'),
         RABBIT_URI: 'amqp://localhost:5672',
         RABBIT_SERVICE_NAME: 'app_eth',
         NETWORK: 'development',
-        uri: '/tmp/development/geth.ipc'
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -19,7 +19,7 @@ const fs = require('fs'),
         RABBIT_URI: 'amqp://localhost:5672',
         RABBIT_SERVICE_NAME: 'app_eth',
         NETWORK: 'development',
-        uri: '/tmp/development/geth.ipc'
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -29,7 +29,7 @@ const fs = require('fs'),
         MONGO_URI: 'mongodb://localhost:27017/data',
         REST_PORT: 8081,
         NETWORK: 'development',
-        uri: '/tmp/development/geth.ipc'
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -53,7 +53,7 @@ const fs = require('fs'),
         SMART_CONTRACTS_EVENTS_TTL: 0,
         RABBIT_SERVICE_NAME: 'app_eth',
         NETWORK: 'development',
-        uri: '/tmp/development/geth.ipc'
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -64,7 +64,7 @@ const fs = require('fs'),
         RABBIT_URI: 'amqp://localhost:5672',
         RABBIT_SERVICE_NAME: 'app_eth',
         NETWORK: 'development',
-        uri: '/tmp/development/geth.ipc'
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     }
   ];
