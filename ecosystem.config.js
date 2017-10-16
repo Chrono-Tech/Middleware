@@ -6,8 +6,9 @@ const fs = require('fs'),
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
         RABBIT_URI: 'amqp://localhost:5672',
-        TRANSACTION_TTL: 0,
-        NETWORK: 'development'
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -15,7 +16,10 @@ const fs = require('fs'),
       script: 'core/middleware-eth-balance-processor',
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
-        RABBIT_URI: 'amqp://localhost:5672'
+        RABBIT_URI: 'amqp://localhost:5672',
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -24,7 +28,8 @@ const fs = require('fs'),
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
         REST_PORT: 8081,
-        SMART_CONTRACTS_EVENTS_LISTEN: 1
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     },
     {
@@ -33,9 +38,10 @@ const fs = require('fs'),
       env: {
         MONGO_URI: 'mongodb://localhost:27017/data',
         RABBIT_URI: 'amqp://localhost:5672',
+        RABBIT_SERVICE_NAME: 'app_eth',
         IPFS_NODES: 'http://localhost:5001',
         SCHEDULE_JOB: '30 * * * * *',
-        SCHEDULE_CHECK_TIME: 0
+        SM_EVENTS: 'setHash:newHash:oldHash'
       }
     },
     {
@@ -45,7 +51,20 @@ const fs = require('fs'),
         MONGO_URI: 'mongodb://localhost:27017/data',
         RABBIT_URI: 'amqp://localhost:5672',
         SMART_CONTRACTS_EVENTS_TTL: 0,
-        NETWORK: 'development'
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
+      }
+    },
+    {
+      name: 'erc20_processor',
+      script: 'core/middleware-eth-erc20',
+      env: {
+        MONGO_URI: 'mongodb://localhost:27017/data',
+        RABBIT_URI: 'amqp://localhost:5672',
+        RABBIT_SERVICE_NAME: 'app_eth',
+        NETWORK: 'development',
+        WEB3_URI: '/tmp/development/geth.ipc'
       }
     }
   ];
