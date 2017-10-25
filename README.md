@@ -208,6 +208,11 @@ After all is done, just start cluster with:
 pm2 start ecosystem.config.js
 ```
 
+##### Create docker contrainer 
+
+```
+docker build -f middleware-ethereum.df -t local/middleware .
+```
 
 License
 ----
