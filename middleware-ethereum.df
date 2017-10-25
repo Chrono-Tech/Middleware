@@ -1,10 +1,8 @@
-FROM node:8.1-slim
-#ENV NPM_CONFIG_LOGLEVEL warn
+FROM node:8-slim
+ENV NPM_CONFIG_LOGLEVEL warn
 RUN apt update && apt install -y python make g++ git build-essential && npm install -g pm2@2.7.1 && mkdir /app
 WORKDIR /app
-COPY middleware-ethereum src/
-RUN cd src && npm install -g --unsafe-perm=true
-RUN cd src && node . middleware-eth-blockprocessor && node . middleware-eth-rest && node . middleware-eth-balance-processor && node . middleware-eth-ipfs && node . middleware-eth-chrono-sc-processor
-COPY mainnet-ecosystem.config.js /app/src/ecosystem.config.js
+COPY data src/
+RUN cd src && npm install --unsafe-perm=true && node . middleware-eth-blockprocessor && node . middleware-eth-rest && node . middleware-eth-chrono-sc-processor && node . middleware-eth-balance-processor && node . middleware-eth-ipfs && node . middleware-eth-erc20
 EXPOSE 8080
-CMD [ "pm2-docker", "start", "src/ecosystem.config.js" ]
+CMD [ "pm2-docker", "start", "/mnt/config/middleware-ethereum-mainnet/ecosystem.config.js" ]
