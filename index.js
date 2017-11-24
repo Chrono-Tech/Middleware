@@ -1,45 +1,36 @@
-const _ = require('lodash'),
-  Promise = require('bluebird'),
-  chalk = require('chalk'),
-  inquirer = require('inquirer'),
-  gitDownload = require('download-git-repo'),
-  download = Promise.promisify(gitDownload),
-  {execSync} = require('child_process'),
-  config = require('./config');
+#! /usr/bin/env node
 
-const setup = [{
-  type: 'checkbox',
-  message: 'Choose modules to install',
-  name: 'modules',
-  choices: _.map(config.modules, 'name')
-}];
+const inquirer = require('inquirer'),
+  _ = require('lodash'),
+  actions = {
+    init: require('./methods/init'),
+    install: require('./methods/install'),
+    help: require('./methods/help')
+  };
 
 const init = async () => {
 
-  let modules = _.chain(config.modules)
-    .filter(module=> process.argv.slice(2).includes(module.name))
+  let action = _.chain(actions)
+    .keys()
+    .find(action => process.argv.slice(2).includes(action))
     .value();
 
-  if (!modules.length) {
-    let choices = await inquirer.prompt(setup);
-    modules = _.filter(config.modules, m => choices.modules.includes(m.name));
-  }
+  let args = _.drop(process.argv.slice(2), 1);
 
-  for (let module of modules) {
-    const moduleName = `core/${module.name}`;
-    console.log(chalk.blue(`Downloading module ${moduleName}`));
-    await download(module.url, moduleName)
-      .catch(err => Promise.reject('Unable to download repo', err));
-
-    process.chdir(`${__dirname}/${moduleName}`);
-    console.log(chalk.blue('Installing it\'s dependencies ...'));
-    execSync('npm i');
-    process.chdir(__dirname);
-  }
+  if (action)
+    return actions[action](process.cwd(), args);
 
 
-  console.log(chalk.green(`Installed these modules ${modules.map(m=>m.name).join(', ')}`));
+  const setup = [{
+    type: 'list',
+    message: 'Choose action',
+    name: 'action',
+    choices: Object.keys(actions)
+  }];
 
-}
+  let option = await inquirer.prompt(setup);
+  actions[option.action](process.cwd());
+
+};
 
 module.exports = init();

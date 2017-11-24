@@ -4,14 +4,19 @@ Middleware service installer
 
 ### Installation
 
-After cloning repo, do:
+first do:
 ```
-npm install
+npm install -g chronobank-middleware
 ```
 
-then just run installer with:
+then init skeleton of project:
 ```
-node .
+dmt init
+```
+
+finally run installer:
+```
+dmt install
 ```
 
 You should see available modules to install in cli. Check modules you want to install to - and the rest of the work installer will handle.
@@ -21,70 +26,25 @@ You should see available modules to install in cli. Check modules you want to in
 If you don't have a chance to run cli - then you can just pass modules, you will to install as args:
 
 ```
-node . middleware-eth-blockprocessor middleware-eth-rest
+dmt install middleware-eth-blockprocessor middleware-eth-rest
+```
+This will run install the following modules from latest master branch
+
+In order, to obtain certain release (tag) you can do like that:
+
+```
+dmt install middleware-eth-blockprocessor#0.0.5 middleware-eth-rest#0.0.5
 ```
 
 ### Modules
-The middleware consists of 6 core modules (for the moment, they are shipped by default in one package, but will be moved
-in separate packages in the nearest future).
-
-##### Block processor
-This module is used for processing incoming blocks from node (geth/parity). The iteraction with node happens via IPC interface. In order to install this module, you should сheck 'middleware-eth-blockprocessor' in cli menu during installation.
-
-Also, make sure, you have a running client (geth/parity) with IPC interface enabled. The path to ipc could be specified with WEB3_URI.
-
-here is an expample with running geth with ipc, where network_name=development:
-```
-geth --verbosity=3 --networkid=4 --ipcpath development/geth.ipc
-```
-
-
-##### chronoSC processor
-
-The crono smart contracts (SC) processor is responsible for handling events, emitted on chonobank platform.
-In order to install it, check this option in cli:
-```
-middleware-eth-chrono-sc-processor
-```
-
-##### Balance processor
-This module is used for updating balances for registered accounts (see a description of accounts in block processor serction).
-
-In order to install it, check this option in cli:
-```
-middleware-eth-balance-processor
-```
-
-##### Rest
-Rest module is used for exposing REST API over block processor. It includes GET methods for fetching accounts,
-transactions, and events (from smart contracts).
-
-In order to install it, check this option in cli:
-```
-middleware-eth-rest
-```
-
-##### IPFS
-IPFS module is used to maintain records of registered users in chronobank in ipfs.
-This module is a part of sc module.
-In order to install it, check this option in cli:
-```
-middleware-eth-ipfs
-```
-
-
-##### ERC20Token
-The ERC20Token is a module for tracking erc20Tokens balances. You can add it by checking this option in cli:
-```
-middleware-eth-erc20
-```
+The middleware consists of components called 'modules'. Each of them is responsible for certain functionality. Most modules are optional. The only necessary one is blockprocessor, which is responsible for interaction with blockchain node and notify other services about new txs and blocks.
 
 ### Configure
 There are 2 possible scenarious of running the middleware modules:
 
 ##### via .env
 
-To apply your configuration, create a .env file in root folder of repo (in case it's not present already).
+To apply your configuration, create a .env file in root folder of project (in case it's not present already).
 Below is the expamle configuration:
 
 ```
@@ -207,7 +167,6 @@ After all is done, just start cluster with:
 ```
 pm2 start ecosystem.config.js
 ```
-
 
 License
 ----

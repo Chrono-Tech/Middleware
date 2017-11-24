@@ -1,0 +1,5 @@
+*
+!methods/*
+!template/*
+!utils/*
+!index.js
