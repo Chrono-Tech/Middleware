@@ -10,15 +10,27 @@ const _ = require('lodash'),
   path = require('path'),
   getRepos = require('../utils/getRepos');
 
-module.exports = async (dir) => {
+module.exports = async (dir, modules) => {
 
   let repos = await getRepos();
 
-  let modules = _.chain(repos)
-    .filter(module => process.argv.slice(2).includes(module.name))
+  modules = _.chain(modules)
+    .transform((result, module) => {
+
+      module = module.split('#');
+      let moduleName = module[0];
+      let tag = module[1] || 'latest';
+
+      let repo = _.find(repos, {name: moduleName});
+      if (!repo)
+        return;
+
+      repo.tag = tag;
+      result.push(repo);
+    }, [])
     .value();
 
-  if (!modules.length) {
+  if (_.isEmpty(modules)) {
     const setup = [{
       type: 'checkbox',
       message: 'Choose modules to install',
@@ -43,26 +55,34 @@ module.exports = async (dir) => {
       json: true
     });
 
-    const tag = [{
-      type: 'list',
-      message: 'Choose module tag',
-      name: 'tag',
-      choices: _.chain(tags)
-        .defaults([{name: 'latest'}])
-        .orderBy('name')
-        .map(repo => repo.name)
-        .value()
-    }];
+    if (!module.tag) {
+      const tag = [{
+        type: 'list',
+        message: 'Choose module tag',
+        name: 'tag',
+        choices: _.chain(tags)
+          .defaults([])
+          .union([{name: 'latest'}])
+          .orderBy('name')
+          .map(repo => repo.name)
+          .value()
+      }];
 
-    let choice = await inquirer.prompt(tag);
+      module.tag = (await inquirer.prompt(tag)).tag;
+    } else {
+      module.tag = _.chain(tags)
+        .find({name: module.tag})
+        .get('name', 'latest')
+        .value();
+    }
 
     const moduleName = `core/${module.name}`;
     console.log(chalk.blue(`removing old module ${moduleName} (if exists)`));
     await fs.remove(path.join(dir, moduleName));
 
     console.log(chalk.blue(`Downloading module ${moduleName}`));
-    console.log(`${module.url}#${choice.tag}`)
-    await download(`${module.url}${choice.tag === 'latest' ? '' : '#' + choice.tag}`, moduleName)
+    console.log(`${module.url}#${module.tag}`);
+    await download(`${module.url}${module.tag === 'latest' ? '' : '#' + module.tag}`, moduleName)
       .catch(err => Promise.reject(`Unable to download repo: ${err}`));
 
     process.chdir(path.join(dir, moduleName));
