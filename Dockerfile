@@ -7,7 +7,7 @@ RUN apt update && \
     mkdir /app
 WORKDIR /app
 RUN npm install -g chronobank-middleware
-RUN cd src && \
+RUN mkdir src && cd src && \
     dmt init && \
     dmt install middleware-eth-blockprocessor \
     middleware-eth-rest \
