@@ -1,0 +1,43 @@
+version: '2'
+services:
+  mongodb-node:
+    image: mongo:latest
+    hostname: mongodb-node
+    environment:
+     - MONGO_DATA_DIR=/data/db
+     - MONGO_LOG_DIR=/var/log/mongo/mongodb.log
+    volumes:
+     - /var/ethereum/services/mongodb:/data/db
+     - /var/ethereum/log/mongodb:/var/log/mongo
+     - /etc/localtime:/etc/localtime:ro
+    command: mongod
+
+  rabbitmq-node:
+    image: local/rabbitmq-stomp
+    hostname: rabbitmq-node
+    environment:
+     - RABBITMQ_DEFAULT_USER=admin
+     - RABBITMQ_DEFAULT_PASS=paswd
+    volumes:
+     - /var/ethereum/services/rabbitmq:/var/lib/rabbitmq
+     - /var/ethereum/log/rabbitmq:/var/log/rabbitmq
+     - /etc/localtime:/etc/localtime:ro
+
+  ipfs-node:
+    image: ipfs/go-ipfs:latest
+    hostname: ipfs-node
+    volumes:
+     - /var/ethereum/services/ipfs/:/data/ipfs
+     - /var/ethereum/log/ipfs:/var/log/ipfs
+     - /etc/localtime:/etc/localtime:ro
+
+  middleware-ethereum-node:
+    image: local/middleware-ethereum
+    hostname: middleware-ethereum-node
+    volumes:
+      - /var/ethereum/:/mnt
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - rabbitmq-node
+      - mongodb-node
+  - ipfs-node
