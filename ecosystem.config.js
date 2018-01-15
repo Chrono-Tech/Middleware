@@ -1,4 +1,5 @@
 const fs = require('fs'),
+  path = require('path'),
   apps = [
     {
       name: 'block_processor',
@@ -74,5 +75,5 @@ module.exports = {
    * Application configuration section
    * http://pm2.keymetrics.io/docs/usage/application-declaration/
    */
-  apps: apps.filter(app => fs.existsSync(app.script))
+  apps: apps.filter(app => fs.existsSync(path.join(__dirname, app.script)))
 };
