@@ -7,14 +7,15 @@ module.exports = async () => {
   let chrono = Promise.promisifyAll(gh.getOrganization('chronobank'));
 
   let repos = await chrono.getReposAsync();
-  let predicate = new RegExp(/middleware-([0-9a-zA-Z]*)-/);
+  let predicate = new RegExp(/middleware-((?!service).*)-/);
   repos = _.chain(repos)
     .filter(repo => predicate.test(repo.name))
     .map(repo => ({
       url: repo.full_name,
       name: repo.name,
-      type: _.last(repo.name.match(predicate)),
-      tags_url: repo.tags_url
+      type: _.chain(repo.name.match(predicate)).last().split('-').head().value(),
+      tags_url: repo.tags_url,
+      branches_url: repo.branches_url.replace('{/branch}', '')
     }))
     .value();
 
