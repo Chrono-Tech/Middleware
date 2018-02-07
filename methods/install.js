@@ -47,8 +47,16 @@ module.exports = async (dir, modules) => {
 
   for (let module of modules) {
 
-    let tags = await request({
+    const tags = await request({
       uri: module.tags_url,
+      headers: {
+        'User-Agent': 'Request-Promise'
+      },
+      json: true
+    });
+
+    const branches = await request({
+      uri: module.branches_url,
       headers: {
         'User-Agent': 'Request-Promise'
       },
@@ -62,7 +70,16 @@ module.exports = async (dir, modules) => {
         name: 'tag',
         choices: _.chain(tags)
           .defaults([])
-          .union([{name: 'latest'}])
+          .thru(tags=>{
+
+            if(_.find(branches, {name: 'master'}))
+              tags.push({name: 'latest'});
+
+            if(_.find(branches, {name: 'develop'}))
+              tags.push({name: 'develop'});
+
+            return tags;
+          })
           .orderBy('name')
           .map(repo => repo.name)
           .value()
@@ -71,6 +88,17 @@ module.exports = async (dir, modules) => {
       module.tag = (await inquirer.prompt(tag)).tag;
     } else {
       module.tag = _.chain(tags)
+        .defaults([])
+        .thru(tags=>{
+
+          if(_.find(branches, {name: 'master'}))
+            tags.push({name: 'latest'});
+
+          if(_.find(branches, {name: 'develop'}))
+            tags.push({name: 'develop'});
+
+          return tags;
+        })
         .find({name: module.tag})
         .get('name', 'latest')
         .value();
