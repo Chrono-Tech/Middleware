@@ -15,15 +15,14 @@ let config = {
   },
   rest: {
     domain: process.env.DOMAIN || 'localhost',
-    port: parseInt(process.env.REST_PORT) || 8081,
-    auth: process.env.USE_AUTH || false
+    port: parseInt(process.env.REST_PORT) || 8081
   },
   nodered: {
     mongo: {
       uri: process.env.NODERED_MONGO_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/data',
       collectionPrefix: process.env.NODE_RED_MONGO_COLLECTION_PREFIX || '',
     },
-    httpServer: parseInt(process.env.USE_HTTP) || false,
+    httpServer: parseInt(process.env.USE_HTTP_SERVER) || false,
     autoSyncMigrations: process.env.NODERED_AUTO_SYNC_MIGRATIONS || true,
     customNodesDir: [path.join(__dirname, '../')],
     migrationsDir: path.join(__dirname, '../migrations'),

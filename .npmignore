@@ -1,5 +1,6 @@
 *
 !methods/*
 !template/*
+!template/**/*
 !utils/*
 !index.js

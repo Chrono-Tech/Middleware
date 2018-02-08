@@ -14,8 +14,8 @@ module.exports = async () => {
       url: repo.full_name,
       name: repo.name,
       type: _.chain(repo.name.match(predicate)).last().split('-').head().value(),
-      tags_url: repo.tags_url,
-      branches_url: repo.branches_url.replace('{/branch}', '')
+      tagsUrl: repo.tags_url,
+      branchesUrl: repo.branches_url.replace('{/branch}', '')
     }))
     .value();
 
