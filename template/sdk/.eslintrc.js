@@ -3,18 +3,13 @@ module.exports = {
     "node": true,
     "es6": true
   },
-  "extends": ["eslint:recommended"],
+  "extends": ['plugin:chronobank/recommended'],
   "rules": {
-    "indent": [
-      "error", 2, {
-        "SwitchCase": 1
-      }
-    ],
     "quotes": ["error", "single"],
-    "camelcase": ["error", {properties: "always"}],
     "semi": ["error", "always"],
     "no-console": 1,
     "no-unused-vars": 1,
+    "curly": ["error", "multi"],
     "no-empty": ["error", {"allowEmptyCatch": true}]
   },
   "parserOptions": {

@@ -168,6 +168,48 @@ After all is done, just start cluster with:
 pm2 start ecosystem.config.js
 ```
 
+### SDK
+
+Beside modules installation, the middleware installer let you init the service sdk constructor. This constructor can be used to create your own microservices around current middleware infrastructure!
+The sdk is based on node-red, which means you can create your own solution with web UI and without code at all.
+In order to install it, type:
+```
+dmt starter <module-name>
+```
+This will init the preflight project inside the specified dir (module-name).
+
+##### сonfigure SDK
+
+To apply your configuration, create a .env file in root folder of repo (in case it's not present already).
+Below is the expamle configuration:
+
+```
+MONGO_ACCOUNTS_URI=mongodb://localhost:27017/data
+MONGO_ACCOUNTS_COLLECTION_PREFIX=eth
+
+NODERED_MONGO_URI=mongodb://localhost:27018/data
+NODE_RED_MONGO_COLLECTION_PREFIX=rest
+
+REST_PORT=8081
+NODERED_AUTO_SYNC_MIGRATIONS=1
+USE_HTTP_SERVER=1
+```
+
+The options are presented below:
+
+| name | description|
+| ------ | ------ |
+| MONGO_URI   | the URI string for mongo connection
+| MONGO_COLLECTION_PREFIX   | the default prefix for all mongo collections. The default value is 'eth'
+| MONGO_ACCOUNTS_URI   | the URI string for mongo connection, which holds users accounts (if not specified, then default MONGO_URI connection will be used)
+| MONGO_ACCOUNTS_COLLECTION_PREFIX   | the collection prefix for accounts collection in mongo (If not specified, then the default MONGO_COLLECTION_PREFIX will be used)
+| NODERED_MONGO_URI   | the URI string for mongo connection, which holds data collections (for instance, processed block's height). In case, it's not specified, then default MONGO_URI connection will be used)
+| NODE_RED_MONGO_COLLECTION_PREFIX   | the collection prefix for node-red collections in mongo (If not specified, then the collections will be created without prefix)
+| REST_PORT   | rest plugin port
+| USE_HTTP_SERVER   | enable or disable http server. Recommended to set to false in production, in case you don't use any http interface
+| NODERED_AUTO_SYNC_MIGRATIONS   | autosync migrations on start (default = yes)
+
+
 License
 ----
 
