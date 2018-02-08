@@ -5,6 +5,7 @@ const inquirer = require('inquirer'),
   actions = {
     init: require('./methods/init'),
     install: require('./methods/install'),
+    starter: require('./methods/installSdk'),
     help: require('./methods/help')
   };
 
