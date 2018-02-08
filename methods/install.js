@@ -48,7 +48,7 @@ module.exports = async (dir, modules) => {
   for (let module of modules) {
 
     const tags = await request({
-      uri: module.tags_url,
+      uri: module.tagsUrl,
       headers: {
         'User-Agent': 'Request-Promise'
       },
@@ -56,7 +56,7 @@ module.exports = async (dir, modules) => {
     });
 
     const branches = await request({
-      uri: module.branches_url,
+      uri: module.branchesUrl,
       headers: {
         'User-Agent': 'Request-Promise'
       },

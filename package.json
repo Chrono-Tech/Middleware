@@ -1,6 +1,6 @@
 {
   "name": "chronobank-middleware",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "chronobank's middleware installer",
   "keywords": [
     "chonobank",
@@ -23,7 +23,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "amqplib": "^0.5.2",
     "bluebird": "^3.5.1",
     "bunyan": "^1.8.12",
     "chalk": "^2.1.0",
@@ -37,9 +36,11 @@
     "request-promise": "^4.2.2"
   },
   "devDependencies": {
+    "babel-eslint": "^8.0.2",
     "chai": "^4.1.1",
     "coveralls": "^2.13.1",
     "eslint": "^3.19.0",
+    "eslint-plugin-chronobank": "github:chronobank/eslint-plugin-chronobank",
     "mocha": "^3.5.0"
   }
 }

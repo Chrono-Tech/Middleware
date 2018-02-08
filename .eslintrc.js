@@ -13,7 +13,7 @@ module.exports = {
     "quotes": ["error", "single"],
     "camelcase": ["error", {properties: "always"}],
     "semi": ["error", "always"],
-    "no-console": 1,
+    "no-console": 0,
     "no-unused-vars": 1,
     "no-empty": ["error", {"allowEmptyCatch": true}]
   },
