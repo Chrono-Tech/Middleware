@@ -3,7 +3,9 @@ const GitHub = require('github-api'),
   Promise = require('bluebird');
 
 module.exports = async () => {
-  let gh = new GitHub();
+  let gh = new GitHub({
+    token: process.env.GITHUB_API_KEY
+  });
   let chrono = Promise.promisifyAll(gh.getOrganization('chronobank'));
 
   let repos = await chrono.getReposAsync();
