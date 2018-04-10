@@ -1,3 +1,9 @@
+/**
+ * Copyright 2017–2018, LaborX PTY
+ * Licensed under the AGPL Version 3 license.
+ * @author Egor Zuev <zyev.egor@gmail.com>
+ */
+
 const _ = require('lodash'),
   Promise = require('bluebird'),
   fs = require('fs-extra'),
@@ -21,8 +27,16 @@ module.exports = async (dir, modules) => {
       let moduleName = module[0];
       let tag = module[1] || 'latest';
 
+      if (!repos.length) {
+        return result.push({
+          tag: tag,
+          url: `ChronoBank/${moduleName}`,
+          name: moduleName
+        });
+      }
+
       let repo = _.find(repos, {name: moduleName});
-      if (!repo)
+      if (!repo && repos.length)
         return;
 
       repo.tag = tag;
@@ -50,18 +64,20 @@ module.exports = async (dir, modules) => {
     const tags = await request({
       uri: module.tagsUrl,
       headers: {
-        'User-Agent': 'Request-Promise'
+        'User-Agent': 'DMT',
+        'Authorization': process.env.GITHUB_API_KEY ? `token ${process.env.GITHUB_API_KEY}` : null
       },
       json: true
-    });
+    }).catch(() => null);
 
     const branches = await request({
       uri: module.branchesUrl,
       headers: {
-        'User-Agent': 'Request-Promise'
+        'User-Agent': 'Request-Promise',
+        'Authorization': process.env.GITHUB_API_KEY ? `token ${process.env.GITHUB_API_KEY}` : null
       },
       json: true
-    });
+    }).catch(() => null);
 
     if (!module.tag) {
       const tag = [{
@@ -70,12 +86,12 @@ module.exports = async (dir, modules) => {
         name: 'tag',
         choices: _.chain(tags)
           .defaults([])
-          .thru(tags=>{
+          .thru(tags => {
 
-            if(_.find(branches, {name: 'master'}))
+            if (_.find(branches, {name: 'master'}))
               tags.push({name: 'latest'});
 
-            if(_.find(branches, {name: 'develop'}))
+            if (_.find(branches, {name: 'develop'}))
               tags.push({name: 'develop'});
 
             return tags;
@@ -89,12 +105,12 @@ module.exports = async (dir, modules) => {
     } else {
       module.tag = _.chain(tags)
         .defaults([])
-        .thru(tags=>{
+        .thru(tags => {
 
-          if(_.find(branches, {name: 'master'}))
+          if (_.find(branches, {name: 'master'}))
             tags.push({name: 'latest'});
 
-          if(_.find(branches, {name: 'develop'}))
+          if (_.find(branches, {name: 'develop'}))
             tags.push({name: 'develop'});
 
           return tags;
