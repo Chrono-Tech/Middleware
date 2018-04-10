@@ -16,8 +16,8 @@
     "test": "node ./node_modules/mocha/bin/mocha -t 90000 tests",
     "migrate_red": "node ./node_modules/middleware_service.sdk/migrate.js run"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "chronobank",
+  "license": "AGPL-3.0",
   "description": "",
   "devDependencies": {
     "babel-eslint": "^8.0.2",
