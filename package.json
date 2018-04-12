@@ -1,6 +1,6 @@
 {
   "name": "chronobank-middleware",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "chronobank's middleware installer",
   "keywords": [
     "chonobank",
@@ -20,8 +20,8 @@
     "url": "https://github.com/ChronoBank/Middleware.git"
   },
   "preferGlobal": true,
-  "author": "",
-  "license": "ISC",
+  "author": "chronobank",
+  "license": "AGPL-3.0",
   "dependencies": {
     "bluebird": "^3.5.1",
     "bunyan": "^1.8.12",
