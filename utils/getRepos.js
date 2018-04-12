@@ -10,7 +10,7 @@ const request = require('request-promise'),
 module.exports = async () => {
 
   let repos = await request({
-    uri: 'https://api.github.com/orgs/chronobank/repos',
+    uri: 'https://api.github.com/orgs/chronobank/repos?per_page=100',
     headers: {
       'User-Agent': 'Request-Promise',
       'Authorization': process.env.GITHUB_API_KEY ? `token ${process.env.GITHUB_API_KEY}` : null
